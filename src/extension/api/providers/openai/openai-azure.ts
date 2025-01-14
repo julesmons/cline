@@ -10,6 +10,7 @@ import { OpenAICompatibleModelProvider } from "./openai-compatible";
 export interface OpenAIAzureModelProviderConfig extends OpenAICompatibleModelProviderConfig {}
 
 export class OpenAIAzureModelProvider extends OpenAICompatibleModelProvider<OpenAIAzureModelProviderConfig> {
+
   protected override readonly client: AzureOpenAI;
 
   constructor(options: Record<string, unknown>) {
@@ -20,14 +21,16 @@ export class OpenAIAzureModelProvider extends OpenAICompatibleModelProvider<Open
     });
   }
 
+  // TODO: All of this information was auto-completed by my IDE. This needs to be researched and replaced (but has been left as-is for now to focus on more pressing issues).
   async getAllModels(): Promise<Model[]> {
     return [
       {
         id: "o1",
         outputLimit: 100_000,
         contextWindow: 200_000,
-        supportsImages: true,
+        supportsImages: true, // TODO: ...
         supportsPromptCache: false, // TODO: ...
+        supportsComputerUse: false, // TODO: ...
         inputPrice: 0, // TODO: ...
         outputPrice: 0 // TODO: ...
       },
@@ -35,8 +38,9 @@ export class OpenAIAzureModelProvider extends OpenAICompatibleModelProvider<Open
         id: "o1-preview",
         outputLimit: 32_768,
         contextWindow: 128_000,
-        supportsImages: true,
-        supportsPromptCache: false,
+        supportsImages: true, // TODO: ...
+        supportsPromptCache: false, // TODO: ...
+        supportsComputerUse: false, // TODO: ...
         inputPrice: 0, // TODO: ...
         outputPrice: 0 // TODO: ...
       },
@@ -44,8 +48,9 @@ export class OpenAIAzureModelProvider extends OpenAICompatibleModelProvider<Open
         id: "o1-mini",
         outputLimit: 65_536,
         contextWindow: 128_000,
-        supportsImages: true,
-        supportsPromptCache: false,
+        supportsImages: true, // TODO: ...
+        supportsPromptCache: false, // TODO: ...
+        supportsComputerUse: false, // TODO: ...
         inputPrice: 0, // TODO: ...
         outputPrice: 0 // TODO: ...
       }

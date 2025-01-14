@@ -240,8 +240,7 @@ export const openAiModelInfoSaneDefaults: ModelInfo = {
   contextWindow: 128_000,
   supportsImages: true,
   supportsPromptCache: false,
-  inputPrice: 0,
-  outputPrice: 0
+  supportsComputerUse: false
 };
 
 // Gemini

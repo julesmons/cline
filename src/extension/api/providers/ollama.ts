@@ -15,7 +15,8 @@ export const ollamaSaneDefaultModel: Omit<Model, "id"> = {
   outputLimit: 32_768,
   contextWindow: 128_000,
   supportsImages: true,
-  supportsPromptCache: false
+  supportsPromptCache: false,
+  supportsComputerUse: false
 };
 
 export interface OllamaModelProviderConfig extends APIModelProviderConfig {}
@@ -109,7 +110,9 @@ export class OllamaModelProvider<TConfig extends OllamaModelProviderConfig> exte
       throw new Error("Ollama client is not initialized.");
     }
 
-    const metadata = await this.client.show({ model: this.config.modelId });
+    const metadata = await this.client.show({
+      model: this.config.modelId
+    });
 
     return {
       id: this.config.modelId,

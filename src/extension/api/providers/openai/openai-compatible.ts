@@ -12,12 +12,14 @@ export const openAISaneDefaultModel: Omit<Model, "id"> = {
   outputLimit: 32_768,
   contextWindow: 128_000,
   supportsImages: true,
-  supportsPromptCache: false
+  supportsPromptCache: false,
+  supportsComputerUse: false
 };
 
 export interface OpenAICompatibleModelProviderConfig extends APIModelProviderConfig {}
 
 export abstract class OpenAICompatibleModelProvider<TConfig extends OpenAICompatibleModelProviderConfig> extends APIModelProvider<TConfig> {
+
   protected override client: OpenAI | null = null;
 
   constructor(name: string, options: Record<string, unknown>) {

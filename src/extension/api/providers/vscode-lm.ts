@@ -12,6 +12,8 @@ import * as vscode from "vscode";
 
 import { extractMessageFromThrow } from "@shared/utils/exception";
 
+import { isClaudeSonnet } from "@extension/utils/model";
+
 import { StatefulModelProvider } from "../stateful.provider";
 import { VSCodeLMMessageTransformer } from "../transformers/vscode-lm";
 
@@ -330,8 +332,8 @@ export class VSCodeLmModelProvider extends StatefulModelProvider<VSCodeLmModelPr
         contextWindow: model.maxInputTokens,
         outputLimit: model.maxInputTokens,
         supportsImages: false,
-        supportsPromptCache: false,
-        supportsComputerUse: id.includes("claude") // Note: this is dirty and should be replaced with a proper check when available.
+        supportsPromptCache: isClaudeSonnet(id), // TODO: CHECK IF THIS IS ACTUALLY SUPPORTED...,
+        supportsComputerUse: isClaudeSonnet(id)
       });
     }
 
@@ -385,8 +387,8 @@ export class VSCodeLmModelProvider extends StatefulModelProvider<VSCodeLmModelPr
       outputLimit: this.client.maxInputTokens,
 
       supportsImages: false,
-      supportsPromptCache: false,
-      supportsComputerUse: id.includes("claude") // Note: this is dirty and should be replaced with a proper check when available.
+      supportsPromptCache: isClaudeSonnet(id),
+      supportsComputerUse: isClaudeSonnet(id)
     };
   }
 }

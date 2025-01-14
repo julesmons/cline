@@ -15,7 +15,6 @@ import type {
   ReclineSay,
   ReclineSayBrowserAction,
   ReclineSayTool
-
 } from "@shared/ExtensionMessage";
 
 import type { ProviderResponseStream } from "@extension/api/types";
@@ -35,9 +34,7 @@ import { serializeError } from "serialize-error";
 
 import { findLastIndex } from "@shared/array";
 import { getApiMetrics } from "@shared/getApiMetrics";
-import {
-  browserActions
-} from "@shared/ExtensionMessage";
+import { browserActions } from "@shared/ExtensionMessage";
 import { combineApiRequests } from "@shared/combineApiRequests";
 import { extractExceptionFromThrow } from "@shared/utils/exception";
 import { combineCommandSequences, COMMAND_REQ_APP_STRING } from "@shared/combineCommandSequences";
@@ -48,7 +45,6 @@ import { StatefulModelProvider } from "@extension/api/stateful.provider";
 
 import { listFiles } from "../services/fd";
 import { fileExistsAtPath } from "../utils/fs";
-import { calculateApiCost } from "../utils/cost";
 import { sanitizeUserInput } from "../utils/sanitize";
 import { regexSearchFiles } from "../services/ripgrep";
 import { arePathsEqual, getReadablePath } from "../utils/path";
@@ -71,8 +67,9 @@ import { constructNewFileContent } from "./assistant-message/diff";
 import { addUserInstructions, SYSTEM_PROMPT } from "./prompts/system";
 
 
-const cwd
-  = vscode.workspace.workspaceFolders?.map(folder => folder.uri.fsPath).at(0) ?? path.join(os.homedir(), "Desktop"); // may or may not exist but fs checking existence would immediately ask for permission which would be bad UX, need to come up with a better solution
+const cwd: string
+  // May or may not exist but fs checking existence would immediately ask for permission which would be bad UX, need to come up with a better solution
+  = vscode.workspace.workspaceFolders?.map(folder => folder.uri.fsPath).at(0) ?? path.join(os.homedir(), "Desktop");
 
 type ToolResponse = string | Array<Anthropic.TextBlockParam | Anthropic.ImageBlockParam>;
 type UserContent = Array<
@@ -88,26 +85,26 @@ export class Recline {
   private browserSession: BrowserSession;
   private consecutiveAutoApprovedRequestsCount: number = 0;
   private consecutiveMistakeCount: number = 0;
-  private currentStreamingContentIndex = 0;
-  private didAlreadyUseTool = false;
-  private didCompleteReadingStream = false;
+  private currentStreamingContentIndex: number = 0;
+  private didAlreadyUseTool: boolean = false;
+  private didCompleteReadingStream: boolean = false;
   private didEditFile: boolean = false;
-  private didRejectTool = false;
+  private didRejectTool: boolean = false;
   private diffViewProvider: DiffViewProvider;
   private lastMessageTs?: number;
-  private presentAssistantMessageHasPendingUpdates = false;
-  private presentAssistantMessageLocked = false;
+  private presentAssistantMessageHasPendingUpdates: boolean = false;
+  private presentAssistantMessageLocked: boolean = false;
   private providerRef: WeakRef<ReclineProvider>;
   private terminalManager: TerminalManager;
   private userMessageContent: (Anthropic.TextBlockParam | Anthropic.ImageBlockParam)[] = [];
+  private userMessageContentReady: boolean = false;
 
-  private userMessageContentReady = false;
-  abandoned = false;
+  abandoned: boolean = false;
   api: ModelProvider<ModelProviderConfig>;
   apiConversationHistory: MessageParamWithTokenCount[] = [];
   autoApprovalSettings: AutoApprovalSettings;
   customInstructions?: string;
-  didFinishAborting = false;
+  didFinishAborting: boolean = false;
   reclineMessages: ReclineMessage[] = [];
   readonly taskId: string;
 
@@ -685,7 +682,7 @@ export class Recline {
         const maxAllowedSize: number = contextWindow - (contextWindow * 0.25);
 
         if (totalTokens >= maxAllowedSize) {
-          const truncatedMessages = truncateHalfConversation(this.apiConversationHistory);
+          const truncatedMessages = truncateHalfConversation(model, this.apiConversationHistory);
           await this.overwriteApiConversationHistory(truncatedMessages);
         }
       }
@@ -2511,8 +2508,6 @@ export class Recline {
       await this.api.initialize();
     }
 
-    const model = await this.api.getCurrentModel();
-
     if (this.consecutiveMistakeCount >= 3) {
       if (this.autoApprovalSettings.enabled && this.autoApprovalSettings.enableNotifications) {
         await showError({
@@ -2589,7 +2584,7 @@ export class Recline {
       let cacheReadTokens = 0;
       let inputTokens = 0;
       let outputTokens = 0;
-      let totalCost: number | undefined;
+      let totalCost = 0;
 
       // update api_req_started. we can't use api_req_finished anymore since it's a unique case where it could come after a streaming message (ie in the middle of being updated or executed)
       // fortunately api_req_finished was always parsed out for the gui anyways, so it remains solely for legacy purposes to keep track of prices in tasks from history
@@ -2601,15 +2596,7 @@ export class Recline {
           tokensOut: outputTokens,
           cacheWrites: cacheWriteTokens,
           cacheReads: cacheReadTokens,
-          cost:
-            totalCost
-            ?? calculateApiCost(
-              model,
-              inputTokens,
-              outputTokens,
-              cacheWriteTokens,
-              cacheReadTokens
-            ),
+          cost: totalCost,
           cancelReason,
           streamingFailedMessage
         } satisfies ReclineApiReqInfo);
@@ -2677,7 +2664,16 @@ export class Recline {
               outputTokens += chunk.outputTokenCount;
               cacheWriteTokens += chunk.cacheWriteTokenCount ?? 0;
               cacheReadTokens += chunk.cacheReadTokenCount ?? 0;
-              totalCost = chunk.totalCost;
+
+              // TODO: This method currently does not support the image surcharge.
+              // Upstream cline did not seem to support this, which is why it was not implemented here.
+              // Also; repeating this calculation multiple times is not ideal, but it currently is a relatively small performance drawback.
+              // In the future, this should be refactored to be more efficient. Calculate only when the stream is either finished or aborted. (to remain accurate)
+              totalCost += (
+                (await this.api.calculateInputCost([{ role: "user", content: "usage-mock", tokenCount: chunk.inputTokenCount }]))
+                + (await this.api.calculateOutputCost([{ role: "assistant", content: "usage-mock", tokenCount: chunk.outputTokenCount }]))
+              );
+              console.log(`Recline <Total Usage> - Input: ${inputTokens}, Output: ${outputTokens}, Cache Write: ${cacheWriteTokens}, Cache Read: ${cacheReadTokens}, Cost: ${totalCost}`);
               break;
             case "text": {
               assistantMessage += chunk.content;

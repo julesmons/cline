@@ -17,7 +17,8 @@ export const lmStudioSaneDefaultModel: Omit<Model, "id"> = {
   outputLimit: 32_768,
   contextWindow: 128_000,
   supportsImages: true,
-  supportsPromptCache: false
+  supportsPromptCache: false,
+  supportsComputerUse: false
 };
 
 interface LMStudioModelProviderConfig extends APIModelProviderConfig {}
@@ -37,7 +38,9 @@ export class LMStudioProvider extends APIModelProvider<LMStudioModelProviderConf
   protected async onDispose(): Promise<void> {
     if (this.client != null && this.model != null) {
       try {
-        await this.client.llm.unload(this.config.modelId);
+        await this.client.llm.unload(
+          this.config.modelId
+        );
       }
       catch (error: unknown) {
         console.error(`Recline <${this.name}> Failed to unload model: ${extractMessageFromThrow(error)}`);

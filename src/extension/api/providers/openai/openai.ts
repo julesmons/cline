@@ -24,6 +24,7 @@ export class OpenAIModelProvider extends OpenAICompatibleModelProvider<OpenAIMod
         contextWindow: 128_000,
         supportsImages: true,
         supportsPromptCache: false,
+        supportsComputerUse: false,
         inputPrice: 15,
         outputPrice: 60
       },
@@ -33,6 +34,7 @@ export class OpenAIModelProvider extends OpenAICompatibleModelProvider<OpenAIMod
         contextWindow: 128_000,
         supportsImages: true,
         supportsPromptCache: false,
+        supportsComputerUse: false,
         inputPrice: 3,
         outputPrice: 12
       },
@@ -42,6 +44,7 @@ export class OpenAIModelProvider extends OpenAICompatibleModelProvider<OpenAIMod
         contextWindow: 128_000,
         supportsImages: true,
         supportsPromptCache: false,
+        supportsComputerUse: false,
         inputPrice: 5,
         outputPrice: 15
       },
@@ -51,6 +54,7 @@ export class OpenAIModelProvider extends OpenAICompatibleModelProvider<OpenAIMod
         contextWindow: 128_000,
         supportsImages: true,
         supportsPromptCache: false,
+        supportsComputerUse: false,
         inputPrice: 0.15,
         outputPrice: 0.6
       }

@@ -13,6 +13,9 @@ export interface Model {
   outputPrice?: number;
   cacheWritesPrice?: number;
   cacheReadsPrice?: number;
+
+  imageSurcharge?: number;
+  requestSurcharge?: number;
 }
 
 export interface ProviderResponseStreamTextChunk {
@@ -32,7 +35,6 @@ export interface ProviderResponseStreamUsageChunk {
   outputTokenCount: number;
   cacheWriteTokenCount?: number;
   cacheReadTokenCount?: number;
-  totalCost?: number; // An override to allow the provider to specify the cost of the usage.
 }
 
 export type ProviderResponseStreamChunk = ProviderResponseStreamTextChunk | ProviderResponseStreamImageChunk | ProviderResponseStreamUsageChunk;
