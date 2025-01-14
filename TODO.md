@@ -4,7 +4,12 @@
 This document outlines ideas and enhancements planned for future versions of Recline.
 By storing these concepts within the repository, collaborators have more context of planning and the development process in general.
 
-### **1. Dynamic Output Limit Management**
+### **Known Issues**
+#### **1. Terminal 'proceed while running' seems to be broken**
+#### **2. I've managed to get browser use working on copilot, but it seems to be unable to click more than once**
+
+### **New Features**
+#### **1. Dynamic Output Limit Management**
 - **Objective**: Ensure optimal interaction with models by adapting instructions to their specific output limits.
 - **Requirements**:
   - **Dynamic System Prompt Injection**:
@@ -15,7 +20,7 @@ By storing these concepts within the repository, collaborators have more context
     - Implement a dynamic classification system to assign models to specific categories.
     - Define and apply model-specific instructions based on their class (e.g., high-capacity bundling vs. incremental interaction).
 
-### **2. Smarter Context Window Management**
+#### **2. Smarter Context Window Management**
 - **Objective**: Optimize the usage of the model's context window for efficient processing and enhanced user experience.
 - **Requirements**:
   - **Token-Based Message Selection**:
@@ -26,7 +31,7 @@ By storing these concepts within the repository, collaborators have more context
   - **Scalability**:
     - Allow for differentiated behavior between larger models (which may not require aggressive optimizations) and smaller models.
 
-### **3. Throttling Mechanism**
+#### **3. Throttling Mechanism**
 - **Objective**: Enforce provider-specific rate limits to prevent exceeding quotas and ensure consistent operation.
 - **Requirements**:
   - **Rate Limiting**:
@@ -39,7 +44,7 @@ By storing these concepts within the repository, collaborators have more context
   - **Strategy Options**:
     - Support multiple throttling strategies, such as token-based, request-based, or combined approaches.
 
-### **4. Queueing System Integration**
+#### **4. Queueing System Integration**
 - **Objective**: Manage requests effectively to comply with throttling and ensure seamless user interaction.
 - **Requirements**:
   - **Pipeline-Based Design**:
@@ -51,7 +56,7 @@ By storing these concepts within the repository, collaborators have more context
   - **Seamless Throttler Integration**:
     - Ensure that the queueing system dynamically adjusts to throttling constraints without manual intervention.
 
-### **5. Configurable Temperature with Auto Mode**
+#### **5. Configurable Temperature with Auto Mode**
 - **Objective**: Provide users with control over the temperature setting while introducing an intelligent auto mode for dynamic temperature adjustments.
 - **Requirements**:
   - **Manual Temperature Configuration**:
@@ -62,7 +67,7 @@ By storing these concepts within the repository, collaborators have more context
       - Refactoring tasks → Low temperature (precise and deterministic outputs).
       - Designing new features → High temperature (creative and exploratory outputs).
 
-### **6. Memory Bank with Abstractions and Drivers**
+#### **6. Memory Bank with Abstractions and Drivers**
 - **Objective**: Enable the system to maintain a dynamic memory bank that can be utilized by tools to store and retrieve information effectively, supporting various storage backends and abstractions.
 - **Requirements**:
   - **Memory Bank Functionality**:
@@ -87,7 +92,7 @@ By storing these concepts within the repository, collaborators have more context
   - **Management and Cleanup**:
     - Include mechanisms for memory cleanup and optimization to avoid performance degradation.
 
-#### **7. Retrieval of Recent Git Commits**
+##### **7. Retrieval of Recent Git Commits**
 - **Objective**: Enable the system to retrieve recent git commits to provide context for the model, improving its ability to reference prior work and understand historical context during interactions.
 - **Requirements**:
   - **Git Commit Retrieval Tool**:
