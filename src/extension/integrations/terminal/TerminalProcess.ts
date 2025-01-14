@@ -186,7 +186,8 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
           "exit",
           "terminate",
           "error",
-          "fail"
+          "fail",
+          "ready"
         ];
 
         const isCompiling

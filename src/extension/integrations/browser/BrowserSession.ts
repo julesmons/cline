@@ -1,17 +1,20 @@
 import type * as vscode from "vscode";
-import type { Browser, launch, Page, ScreenshotOptions } from "puppeteer-core";
+import type { Browser, ConsoleMessage, launch, Page } from "puppeteer-core";
 
 import type { BrowserActionResult } from "@shared/ExtensionMessage";
 
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
+import * as process from "node:process";
 
 import pWaitFor from "p-wait-for";
 import { delay } from "es-toolkit";
 import PCR from "puppeteer-chromium-resolver";
 import { TimeoutError } from "puppeteer-core";
 
-import { fileExistsAtPath } from "../../utils/fs";
+import { extractMessageFromThrow } from "@shared/utils/exception";
+
+import { fileExistsAtPath } from "@extension/utils/fs";
 
 
 interface PCRStats {
@@ -43,16 +46,16 @@ export class BrowserSession {
 
     // if chromium doesn't exist, this will download it to path.join(puppeteerDir, ".chromium-browser-snapshots")
     // if it does exist it will return the path to existing chromium
-    const stats: PCRStats = await PCR({
-      downloadPath: puppeteerDir
-    });
+    const stats: PCRStats = await PCR({ downloadPath: puppeteerDir });
+
+    process.env.PUPPETEER_EXECUTABLE_PATH = stats.executablePath;
 
     return stats;
   }
 
   // page.goto { waitUntil: "networkidle0" } may not ever resolve, and not waiting could return page content too early before js has loaded
   // https://stackoverflow.com/questions/52497252/puppeteer-wait-until-page-is-completely-loaded/61304202#61304202
-  private async waitTillHTMLStable(page: Page, timeout = 5_000) {
+  private async waitTillHTMLStable(page: Page, timeout = 5_000): Promise<void> {
     const checkDurationMsecs = 500; // 1000
     const maxChecks = timeout / checkDurationMsecs;
     let lastHTMLSize = 0;
@@ -89,7 +92,7 @@ export class BrowserSession {
     return this.doAction(async (page) => {
       // Set up network request monitoring
       let hasNetworkActivity = false;
-      const requestListener = () => {
+      const requestListener = (): void => {
         hasNetworkActivity = true;
       };
       page.on("request", requestListener);
@@ -138,7 +141,7 @@ export class BrowserSession {
     const logs: string[] = [];
     let lastLogTs = Date.now();
 
-    const consoleListener = (msg: any) => {
+    const consoleListener = (msg: ConsoleMessage): void => {
       if (msg.type() === "log") {
         logs.push(msg.text());
       }
@@ -148,7 +151,7 @@ export class BrowserSession {
       lastLogTs = Date.now();
     };
 
-    const errorListener = (err: Error) => {
+    const errorListener = (err: Error): void => {
       logs.push(`[Page Error] ${err.toString()}`);
       lastLogTs = Date.now();
     };
@@ -162,7 +165,7 @@ export class BrowserSession {
     }
     catch (err) {
       if (!(err instanceof TimeoutError)) {
-        logs.push(`[Error] ${err.toString()}`);
+        logs.push(`[Error] ${extractMessageFromThrow(err)}`);
       }
     }
 
@@ -172,28 +175,18 @@ export class BrowserSession {
       interval: 100
     }).catch(() => {});
 
-    const options: ScreenshotOptions = {
+    let screenshotBase64: string = await this.page.screenshot({
+      type: "webp",
       encoding: "base64"
-
-      // clip: {
-      // 	x: 0,
-      // 	y: 0,
-      // 	width: 900,
-      // 	height: 600,
-      // },
-    };
-
-    let screenshotBase64 = await this.page.screenshot({
-      ...options,
-      type: "webp"
     });
+
     let screenshot = `data:image/webp;base64,${screenshotBase64}`;
 
     if (!screenshotBase64) {
       console.log("webp screenshot failed, trying png");
       screenshotBase64 = await this.page.screenshot({
-        ...options,
-        type: "png"
+        type: "png",
+        encoding: "base64"
       });
       screenshot = `data:image/png;base64,${screenshotBase64}`;
     }
@@ -214,26 +207,23 @@ export class BrowserSession {
     };
   }
 
-  async launchBrowser() {
-    console.log("launch browser called");
+  async launchBrowser(): Promise<void> {
+
+    // Close the browser if it's already open
     if (this.browser) {
-      // throw new Error("Browser already launched")
-      await this.closeBrowser(); // this may happen when the model launches a browser again after having used it already before
+      await this.closeBrowser();
     }
 
     const stats = await this.ensureChromiumExists();
     this.browser = await stats.puppeteer.launch({
-      args: [
-        "--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
-      ],
       executablePath: stats.executablePath,
       defaultViewport: {
         width: 900,
         height: 600
-      }
-      // headless: false,
+      },
+      headless: true
     });
-    // (latest version of puppeteer does not add headless to user agent)
+
     this.page = await this.browser?.newPage();
   }
 
