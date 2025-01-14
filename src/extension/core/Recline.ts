@@ -39,9 +39,9 @@ import { combineApiRequests } from "@shared/combineApiRequests";
 import { extractExceptionFromThrow } from "@shared/utils/exception";
 import { combineCommandSequences, COMMAND_REQ_APP_STRING } from "@shared/combineCommandSequences";
 
-import { GlobalFileNames } from "@extension/constants";
 import { modelProviderRegistrar } from "@extension/api";
 import { StatefulModelProvider } from "@extension/api/stateful.provider";
+import { GlobalFileNames, reclineRulesPath, workspaceRoot } from "@extension/constants";
 
 import { listFiles } from "../services/fd";
 import { fileExistsAtPath } from "../utils/fs";
@@ -66,10 +66,6 @@ import { truncateHalfConversation } from "./sliding-window";
 import { constructNewFileContent } from "./assistant-message/diff";
 import { addUserInstructions, SYSTEM_PROMPT } from "./prompts/system";
 
-
-const cwd: string
-  // May or may not exist but fs checking existence would immediately ask for permission which would be bad UX, need to come up with a better solution
-  = vscode.workspace.workspaceFolders?.map(folder => folder.uri.fsPath).at(0) ?? path.join(os.homedir(), "Desktop");
 
 type ToolResponse = string | Array<Anthropic.TextBlockParam | Anthropic.ImageBlockParam>;
 type UserContent = Array<
@@ -126,7 +122,7 @@ export class Recline {
 
     this.terminalManager = new TerminalManager();
     this.browserSession = new BrowserSession(provider.context);
-    this.diffViewProvider = new DiffViewProvider(cwd);
+    this.diffViewProvider = new DiffViewProvider(workspaceRoot);
     this.customInstructions = customInstructions;
     this.autoApprovalSettings = autoApprovalSettings;
     if (historyItem) {
@@ -457,7 +453,7 @@ export class Recline {
     newUserContent.push({
       type: "text",
       text:
-        `[TASK RESUMPTION] This task was interrupted ${agoText}. It may or may not be complete, so please reassess the task context. Be aware that the project state may have changed since then. The current working directory is now '${cwd.toPosix()}'. If the task has not been completed, retry the last step before interruption and proceed with completing the task.\n\nNote: If you previously attempted a tool use that the user did not provide a result for, you should assume the tool use was not successful and assess whether you should retry. If the last tool was a browser_action, the browser has been closed and you must launch a new browser if needed.${wasRecent
+        `[TASK RESUMPTION] This task was interrupted ${agoText}. It may or may not be complete, so please reassess the task context. Be aware that the project state may have changed since then. The current working directory is now '${workspaceRoot.toPosix()}'. If the task has not been completed, retry the last step before interruption and proceed with completing the task.\n\nNote: If you previously attempted a tool use that the user did not provide a result for, you should assume the tool use was not successful and assess whether you should retry. If the last tool was a browser_action, the browser has been closed and you must launch a new browser if needed.${wasRecent
           ? "\n\nIMPORTANT: If the last tool use was a replace_in_file or write_to_file that was interrupted, the file was reverted back to its original state before the interrupted edit, and you do NOT need to re-read the file as you already have its up-to-date contents."
           : ""
         }${responseText != null && responseText.length > 0
@@ -660,11 +656,9 @@ export class Recline {
 
     const model = await this.api.getCurrentModel();
 
-    let systemPrompt: string = await SYSTEM_PROMPT(cwd, model.supportsComputerUse, mcpHub);
+    let systemPrompt: string = await SYSTEM_PROMPT(workspaceRoot, model.supportsComputerUse, mcpHub);
     const settingsCustomInstructions: string | undefined = this.customInstructions?.trim();
-    const reclineRulesFileInstructions: string | undefined = await this.getReclineRulesInstructions(
-      path.resolve(cwd, GlobalFileNames.reclineRules)
-    );
+    const reclineRulesFileInstructions: string | undefined = await this.getReclineRulesInstructions();
 
     if (
       (settingsCustomInstructions != null && settingsCustomInstructions.length > 0)
@@ -721,7 +715,7 @@ export class Recline {
   }
 
   async executeCommandTool(command: string): Promise<[boolean, ToolResponse]> {
-    const terminalInfo = await this.terminalManager.getOrCreateTerminal(cwd);
+    const terminalInfo = await this.terminalManager.getOrCreateTerminal(workspaceRoot);
     terminalInfo.terminal.show(); // weird visual bug when creating new terminals (even manually) where there's an empty space at the top.
     const process = this.terminalManager.runCommand(terminalInfo, command);
 
@@ -855,7 +849,7 @@ export class Recline {
     const visibleFiles = vscode.window.visibleTextEditors.map(
       editor => editor.document.uri.fsPath
     );
-    details += `\n${getFormattedPaths(visibleFiles, cwd, "(No visible files)")}`;
+    details += `\n${getFormattedPaths(visibleFiles, workspaceRoot, "(No visible files)")}`;
 
     details += "\n\n# VSCode Open Tabs (Excluding 'VSCode Visible Files')";
     const visibleFilesSet = new Set(visibleFiles);
@@ -863,7 +857,7 @@ export class Recline {
       .flatMap(group => group.tabs)
       .map(tab => (tab.input as vscode.TabInputText)?.uri?.fsPath)
       .filter(path => path != null && path.length > 0 && !visibleFilesSet.has(path));
-    details += `\n${getFormattedPaths(openTabs, cwd, "(No open tabs)")}`;
+    details += `\n${getFormattedPaths(openTabs, workspaceRoot, "(No open tabs)")}`;
 
     const busyTerminals = this.terminalManager.getTerminals(true);
     const inactiveTerminals = this.terminalManager.getTerminals(false);
@@ -952,18 +946,18 @@ export class Recline {
     }
 
     if (includeFileDetails) {
-      details += `\n\n# Current Working Directory (${cwd.toPosix()}) Files\n`;
-      const isDesktop = arePathsEqual(cwd, path.join(os.homedir(), "Desktop"));
+      details += `\n\n# Current Working Directory (${workspaceRoot.toPosix()}) Files\n`;
+      const isDesktop = arePathsEqual(workspaceRoot, path.join(os.homedir(), "Desktop"));
       if (isDesktop) {
         // don't want to immediately access desktop since it would show permission popup
         details += "(Desktop files not shown automatically. Use list_files to explore if needed.)";
       }
       else {
-        const [files, didHitLimit] = await listFiles(cwd, {
+        const [files, didHitLimit] = await listFiles(workspaceRoot, {
           recursive: true,
           limit: 200
         });
-        const result = formatResponse.formatFilesList(cwd, files, didHitLimit);
+        const result = formatResponse.formatFilesList(workspaceRoot, files, didHitLimit);
         details += result;
       }
     }
@@ -971,14 +965,14 @@ export class Recline {
     return `<environment_details>\n${details.trim()}\n</environment_details>`;
   }
 
-  async getReclineRulesInstructions(reclineRulesFilePath: string): Promise<string | undefined> {
+  async getReclineRulesInstructions(): Promise<string | undefined> {
     try {
-      const ruleFileContent = await fs.readFile(reclineRulesFilePath, "utf8");
+      const ruleFileContent = await fs.readFile(reclineRulesPath, "utf8");
       const trimmedContent = ruleFileContent.trim();
-      return trimmedContent ? `# .reclinerules\n\nThe following is provided by a root-level .reclinerules file where the user has specified instructions for this working directory (${cwd.toPosix()})\n\n${trimmedContent}` : undefined;
+      return trimmedContent ? `# .reclinerules\n\nThe following is provided by a root-level .reclinerules file where the user has specified instructions for this working directory (${workspaceRoot.toPosix()})\n\n${trimmedContent}` : undefined;
     }
     catch {
-      console.error(`Failed to read .reclinerules file at ${reclineRulesFilePath}`);
+      console.error(`Failed to read .reclinerules file at ${reclineRulesPath}`);
       return undefined;
     }
   }
@@ -1001,7 +995,7 @@ export class Recline {
           if (block.type === "text") {
             return {
               ...block,
-              text: await parseMentions(block.text, cwd)
+              text: await parseMentions(block.text, workspaceRoot)
             };
           }
           else if (block.type === "tool_result") {
@@ -1009,7 +1003,7 @@ export class Recline {
             if (typeof block.content === "string" && isUserMessage(block.content)) {
               return {
                 ...block,
-                content: await parseMentions(block.content, cwd)
+                content: await parseMentions(block.content, workspaceRoot)
               };
             }
             else if (Array.isArray(block.content)) {
@@ -1018,7 +1012,7 @@ export class Recline {
                   if (contentBlock.type === "text" && isUserMessage(contentBlock.text)) {
                     return {
                       ...contentBlock,
-                      text: await parseMentions(contentBlock.text, cwd)
+                      text: await parseMentions(contentBlock.text, workspaceRoot)
                     };
                   }
                   return contentBlock;
@@ -1308,7 +1302,7 @@ export class Recline {
               fileExists = this.diffViewProvider.editType === "modify";
             }
             else {
-              const absolutePath = path.resolve(cwd, relPath);
+              const absolutePath = path.resolve(workspaceRoot, relPath);
               fileExists = await fileExistsAtPath(absolutePath);
               this.diffViewProvider.editType = fileExists ? "modify" : "create";
             }
@@ -1372,7 +1366,7 @@ export class Recline {
 
               const sharedMessageProps: ReclineSayTool = {
                 tool: fileExists ? "editedExistingFile" : "newFileCreated",
-                path: getReadablePath(cwd, await removeClosingTag("path", relPath)),
+                path: getReadablePath(workspaceRoot, await removeClosingTag("path", relPath)),
                 content: (diff ?? "") || content
               };
 
@@ -1498,7 +1492,7 @@ export class Recline {
                     "user_feedback_diff",
                     JSON.stringify({
                       tool: fileExists ? "editedExistingFile" : "newFileCreated",
-                      path: getReadablePath(cwd, relPath),
+                      path: getReadablePath(workspaceRoot, relPath),
                       diff: userEdits
                     } satisfies ReclineSayTool)
                   );
@@ -1542,7 +1536,7 @@ export class Recline {
             const relPath: string | undefined = block.params.path;
             const sharedMessageProps: ReclineSayTool = {
               tool: "readFile",
-              path: getReadablePath(cwd, await removeClosingTag("path", relPath))
+              path: getReadablePath(workspaceRoot, await removeClosingTag("path", relPath))
             };
             try {
               if (block.partial) {
@@ -1567,7 +1561,7 @@ export class Recline {
                   break;
                 }
                 this.consecutiveMistakeCount = 0;
-                const absolutePath = path.resolve(cwd, relPath);
+                const absolutePath = path.resolve(workspaceRoot, relPath);
                 const completeMessage = JSON.stringify({
                   ...sharedMessageProps,
                   content: absolutePath
@@ -1604,7 +1598,7 @@ export class Recline {
             const recursive = recursiveRaw?.toLowerCase() === "true";
             const sharedMessageProps: ReclineSayTool = {
               tool: !recursive ? "listFilesTopLevel" : "listFilesRecursive",
-              path: getReadablePath(cwd, await removeClosingTag("path", relDirPath))
+              path: getReadablePath(workspaceRoot, await removeClosingTag("path", relDirPath))
             };
             try {
               if (block.partial) {
@@ -1629,7 +1623,7 @@ export class Recline {
                   break;
                 }
                 this.consecutiveMistakeCount = 0;
-                const absolutePath = path.resolve(cwd, relDirPath);
+                const absolutePath = path.resolve(workspaceRoot, relDirPath);
                 const [files, didHitLimit] = await listFiles(absolutePath, {
                   recursive,
                   limit: 200
@@ -1667,7 +1661,7 @@ export class Recline {
             const relDirPath: string | undefined = block.params.path;
             const sharedMessageProps: ReclineSayTool = {
               tool: "listCodeDefinitionNames",
-              path: getReadablePath(cwd, await removeClosingTag("path", relDirPath))
+              path: getReadablePath(workspaceRoot, await removeClosingTag("path", relDirPath))
             };
             try {
               if (block.partial) {
@@ -1694,7 +1688,7 @@ export class Recline {
                   break;
                 }
                 this.consecutiveMistakeCount = 0;
-                const absolutePath = path.resolve(cwd, relDirPath);
+                const absolutePath = path.resolve(workspaceRoot, relDirPath);
                 const result = await parseSourceCodeForDefinitionsTopLevel(absolutePath);
                 const completeMessage = JSON.stringify({
                   ...sharedMessageProps,
@@ -1730,7 +1724,7 @@ export class Recline {
             const filePattern: string | undefined = block.params.file_pattern;
             const sharedMessageProps: ReclineSayTool = {
               tool: "searchFiles",
-              path: getReadablePath(cwd, await removeClosingTag("path", relDirPath)),
+              path: getReadablePath(workspaceRoot, await removeClosingTag("path", relDirPath)),
               regex: await removeClosingTag("regex", regex),
               filePattern: await removeClosingTag("file_pattern", filePattern)
             };
@@ -1762,8 +1756,8 @@ export class Recline {
                   break;
                 }
                 this.consecutiveMistakeCount = 0;
-                const absolutePath = path.resolve(cwd, relDirPath);
-                const results = await regexSearchFiles(cwd, absolutePath, regex, filePattern);
+                const absolutePath = path.resolve(workspaceRoot, relDirPath);
+                const results = await regexSearchFiles(workspaceRoot, absolutePath, regex, filePattern);
                 const completeMessage = JSON.stringify({
                   ...sharedMessageProps,
                   content: results

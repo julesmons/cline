@@ -11,3 +11,4 @@ export const GlobalFileNames = {
 
 export const workspaceRoot: string = vscode.workspace.workspaceFolders?.map(folder => folder.uri.fsPath).at(0) ?? ".";
 export const extensionPath: string = vscode.extensions.getExtension("julesmons.recline")!.extensionPath;
+export const reclineRulesPath: string = `${workspaceRoot}/${GlobalFileNames.reclineRules}`;
