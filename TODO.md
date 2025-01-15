@@ -4,8 +4,29 @@
 This document outlines ideas and enhancements planned for future versions of Recline.
 By storing these concepts within the repository, collaborators have more context of planning and the development process in general.
 
+### **General**
+
+#### **1. Refactor to event-driven architecture**
+  - The user mainly interacts with Recline through the chat interface.
+    - This essentially creates a stream of messages. From the user to the assistant and vice versa.
+    - The messages trigger user messages trigger core functionality, tool calls and tool calls trigger tool results, etc...
+    - Because of this it seems as though event driven architecture (e.g. RxJS) seems like a much better fit for Recline instead of the monolithic Recline.ts and ReclineProvider.ts
+    - This should also solve most of (if not all of) the numerous state-based issues Cline suffered from.
+    - This way all logic is also very modular and decentralized. Again, making maintenance and the implementation of new features much easier (and safer!)
+
+#### **2. Split the current UI components into cleaner, more focussed (and thus smaller) components.**
+  - This will make general maintenance and new feature development much easier.
+
+#### **3. Remove duplicate logic from the UI**
+  - For example, the retrieval of openrouter models is now directly done in the front end which seems inefficient.
+  - All functionality should be handled in the extension (through the event-driven architecture previously described).
+  - The UI should also get a dedicated event-driven implementation with dedicated event busses
+  - The webview communicator (ReclineProvider) can then act as a middle-man to translate content from one message bus to the other.
+
 ### **Known Issues**
 #### **1. Terminal 'proceed while running' seems to be broken**
+  - Whilst using vite 6 i saw that the sidebar did not offer the option to 'proceed while running'
+  - This MIGHT be related to the way Cline checks if a terminal is 'compiling'. I noticed the "ready" Vite 6 uses was not included as an end marker. This has since been added but needs to be tested.
 #### **2. I've managed to get browser use working on copilot, but it seems to be unable to click more than once**
 
 ### **New Features**
