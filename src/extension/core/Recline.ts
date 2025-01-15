@@ -993,34 +993,16 @@ export class Recline {
       Promise.all(
         userContent.map(async (block) => {
           if (block.type === "text") {
-            return {
-              ...block,
-              text: await parseMentions(block.text, workspaceRoot)
-            };
-          }
-          else if (block.type === "tool_result") {
-            const isUserMessage = (text: string): boolean => text.includes("<feedback>") || text.includes("<answer>");
-            if (typeof block.content === "string" && isUserMessage(block.content)) {
+            // Important: We need to ensure any user generated content is wrapped in one of these tags so that we know to parse mentions
+            // FIXME: Only parse text in between these tags instead of the entire text block which may contain other tool results. This is part of a larger issue where we shouldn't be using regex to parse mentions in the first place (ie for cases where file paths have spaces)
+            if (
+              block.text.includes("<feedback>")
+              || block.text.includes("<answer>")
+              || block.text.includes("<task>")
+            ) {
               return {
                 ...block,
-                content: await parseMentions(block.content, workspaceRoot)
-              };
-            }
-            else if (Array.isArray(block.content)) {
-              const parsedContent = await Promise.all(
-                block.content.map(async (contentBlock) => {
-                  if (contentBlock.type === "text" && isUserMessage(contentBlock.text)) {
-                    return {
-                      ...contentBlock,
-                      text: await parseMentions(contentBlock.text, workspaceRoot)
-                    };
-                  }
-                  return contentBlock;
-                })
-              );
-              return {
-                ...block,
-                content: parsedContent
+                text: await parseMentions(block.text, workspaceRoot)
               };
             }
           }
