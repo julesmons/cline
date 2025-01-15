@@ -19,16 +19,16 @@ import { DEFAULT_AUTO_APPROVAL_SETTINGS } from "@shared/AutoApprovalSettings";
 
 import { Recline } from "@extension/core/Recline";
 import { GlobalFileNames } from "@extension/constants";
+import { fileExistsAtPath } from "@extension/utils/fs";
+import { modelProviderRegistrar } from "@extension/api";
+import { McpHub } from "@extension/services/mcp/McpHub";
+import { getTheme } from "@extension/integrations/theme/getTheme";
+import { selectImages } from "@extension/integrations/misc/process-images";
+import { downloadTask } from "@extension/integrations/misc/export-markdown";
+import { openFile, openImage } from "@extension/integrations/misc/open-file";
+import WorkspaceTracker from "@extension/integrations/workspace/WorkspaceTracker";
 
 import { openMention } from "../mentions";
-import { buildApiHandler } from "../../api-legacy";
-import { fileExistsAtPath } from "../../utils/fs";
-import { McpHub } from "../../services/mcp/McpHub";
-import { getTheme } from "../../integrations/theme/getTheme";
-import { selectImages } from "../../integrations/misc/process-images";
-import { downloadTask } from "../../integrations/misc/export-markdown";
-import { openFile, openImage } from "../../integrations/misc/open-file";
-import WorkspaceTracker from "../../integrations/workspace/WorkspaceTracker";
 
 import { getUri } from "./getUri";
 import { getNonce } from "./getNonce";
@@ -257,7 +257,8 @@ export class ReclineProvider implements vscode.WebviewViewProvider {
               await this.updateGlobalState("openRouterModelInfo", openRouterModelInfo);
               await this.updateGlobalState("vsCodeLmModelSelector", vsCodeLmModelSelector);
               if (this.recline) {
-                this.recline.api = buildApiHandler(message.apiConfiguration);
+                const { apiProvider, ...apiProviderConfig } = message.apiConfiguration;
+                this.recline.api = modelProviderRegistrar.buildProvider(apiProvider, apiProviderConfig);
               }
             }
             await this.postStateToWebview();
@@ -709,7 +710,7 @@ export class ReclineProvider implements vscode.WebviewViewProvider {
     await this.storeSecret("openRouterApiKey", apiKey);
     await this.postStateToWebview();
     if (this.recline) {
-      this.recline.api = buildApiHandler({ apiProvider: openrouter, openRouterApiKey: apiKey });
+      this.recline.api = modelProviderRegistrar.buildProvider(openrouter, { openRouterApiKey: apiKey });
     }
     // await this.postMessageToWebview({ type: "action", action: "settingsButtonClicked" }) // bad ux if user is on welcome
   }
