@@ -130,3 +130,26 @@ By storing these concepts within the repository, collaborators have more context
     - Provide feedback if the tool cannot access git commits due to repository issues (e.g., no git initialized, missing permissions).
   - **Optimization**:
     - Fetch commit data efficiently to avoid delays in user interaction.
+
+##### **8. Dynamic System Prompt**
+- **Objective**: Implement intelligent system prompt generation to optimize context window usage and improve response relevance.
+- **Requirements**:
+  - **Keyword Analysis**:
+    - Develop parser to identify key terms and topics in user prompts
+    - Build dictionary of prompt-relevant content mappings
+    - Support fuzzy matching for related terms
+  - **Context Management**:
+    - Create modular system prompt components
+    - Dynamically include/exclude sections based on user query
+    - Maintain core system capabilities in base prompt
+  - **Optimization**:
+    - Reduce context window overhead for unused definitions
+    - Prioritize most relevant context for current interaction
+    - Monitor prompt size impact on performance
+  - **Configuration**:
+    - Allow customization of keyword mappings
+    - Support priority levels for different content blocks
+    - Enable addition of new dynamic sections
+  - **Error Handling**:
+    - Gracefully handle missing content modules
+    - Provide feedback if prompt exceeds size limits
