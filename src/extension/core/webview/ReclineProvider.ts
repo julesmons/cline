@@ -394,8 +394,6 @@ export class ReclineProvider implements vscode.WebviewViewProvider {
     this.recline = undefined; // removes reference to it, so once promises end it will be garbage collected
   }
 
-  // MCP
-
   async deleteTaskFromState(id: string) {
     // Remove the task from history
     const taskHistory = ((await this.getGlobalState("taskHistory")) as HistoryItem[] | undefined) || [];
@@ -431,8 +429,6 @@ export class ReclineProvider implements vscode.WebviewViewProvider {
     await fs.rmdir(taskDirPath); // succeeds if the dir is empty
   }
 
-  // Ollama
-
   /*
 	VSCode extensions use the disposable pattern to clean up resources when the sidebar/editor tab is closed by the user or system. This applies to event listening, commands, interacting with the UI, etc.
 	- https://vscode-docs.readthedocs.io/en/stable/extensions/patterns-and-principles/
@@ -460,8 +456,6 @@ export class ReclineProvider implements vscode.WebviewViewProvider {
     ReclineProvider.activeInstances.delete(this);
   }
 
-  // LM Studio
-
   async ensureMcpServersDirectoryExists(): Promise<string> {
     const mcpServersDir = path.join(os.homedir(), "Documents", "Recline", "MCP");
     try {
@@ -473,15 +467,11 @@ export class ReclineProvider implements vscode.WebviewViewProvider {
     return mcpServersDir;
   }
 
-  // VSCode Language Model API
-
   async ensureSettingsDirectoryExists(): Promise<string> {
     const settingsDir = path.join(this.context.globalStorageUri.fsPath, "settings");
     await fs.mkdir(settingsDir, { recursive: true });
     return settingsDir;
   }
-
-  // OpenRouter
 
   async exportTaskWithId(id: string) {
     const { historyItem, apiConversationHistory } = await this.getTaskWithId(id);
@@ -527,8 +517,6 @@ export class ReclineProvider implements vscode.WebviewViewProvider {
       return [];
     }
   }
-
-  // Task history
 
   async getState() {
     const [
@@ -804,8 +792,6 @@ export class ReclineProvider implements vscode.WebviewViewProvider {
     return undefined;
   }
 
-  // global
-
   async refreshOpenRouterModels() {
     const openRouterModelsFilePath = path.join(
       await this.ensureCacheDirectoryExists(),
@@ -953,8 +939,6 @@ export class ReclineProvider implements vscode.WebviewViewProvider {
     await this.postMessageToWebview({ type: "action", action: "chatButtonClicked" });
   }
 
-  // workspace
-
   resolveWebviewView(
     webviewView: vscode.WebviewView | vscode.WebviewPanel
     // context: vscode.WebviewViewResolveContext<unknown>, used to recreate a deallocated webview, but we don't need this since we use retainContextWhenHidden
@@ -1052,8 +1036,6 @@ export class ReclineProvider implements vscode.WebviewViewProvider {
   // 	this.context.secrets.delete("apiKey")
   // }
 
-  // secrets
-
   async updateCustomInstructions(instructions?: string) {
     // User may be clearing the field
     await this.updateGlobalState("customInstructions", instructions || undefined);
@@ -1066,8 +1048,6 @@ export class ReclineProvider implements vscode.WebviewViewProvider {
   async updateGlobalState(key: GlobalStateKey, value: any) {
     await this.context.globalState.update(key, value);
   }
-
-  // dev
 
   async updateTaskHistory(item: HistoryItem): Promise<HistoryItem[]> {
     const history = ((await this.getGlobalState("taskHistory")) as HistoryItem[]) || [];
