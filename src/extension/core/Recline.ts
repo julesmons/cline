@@ -188,7 +188,7 @@ export class Recline {
     let nextUserContent = userContent;
     let includeFileDetails = true;
     while (!this.abort) {
-      const didEndLoop = await this.recursivelyMakeReclineRequests(nextUserContent, includeFileDetails);
+      const didEndLoop = await this.recursivelyMakeReclineRequests(nextUserContent, includeFileDetails, true);
       includeFileDetails = false; // we only need file details the first time
 
       //  The way this agentic loop works is that recline will be given a task that he then calls tools to complete. unless there's an attempt_completion call, we keep responding back to him with his tool's responses until he either attempt_completion or does not use anymore tools. If he does not use anymore tools, we ask him to consider if he's completed the task and then call attempt_completion, otherwise proceed with completing the task.
@@ -650,6 +650,7 @@ export class Recline {
       throw new Error("MCP hub not available");
     }
 
+    // Ensure the API is initialized before trying to get the model info.
     if (this.api instanceof StatefulModelProvider) {
       await this.api.initialize();
     }
@@ -704,11 +705,6 @@ export class Recline {
       await this.say("api_req_retried");
       yield * this.attemptApiRequest(previousApiReqIndex);
       return;
-    }
-    finally {
-      if (this.api instanceof StatefulModelProvider) {
-        await this.api.dispose();
-      }
     }
 
     yield * iterator;
@@ -2489,7 +2485,8 @@ export class Recline {
 
   async recursivelyMakeReclineRequests(
     userContent: UserContent,
-    includeFileDetails: boolean = false
+    includeFileDetails: boolean = false,
+    dispose: boolean = true
   ): Promise<boolean> {
     if (this.abort) {
       throw new Error("Recline instance aborted");
@@ -2780,7 +2777,7 @@ export class Recline {
           this.consecutiveMistakeCount++;
         }
 
-        const recDidEndLoop = await this.recursivelyMakeReclineRequests(this.userMessageContent);
+        const recDidEndLoop = await this.recursivelyMakeReclineRequests(this.userMessageContent, false, false);
         didEndLoop = recDidEndLoop;
       }
       else {
@@ -2800,6 +2797,11 @@ export class Recline {
     catch {
       // this should never happen since the only thing that can throw an error is the attemptApiRequest, which is wrapped in a try catch that sends an ask where if noButtonClicked, will clear current task and destroy this instance. However to avoid unhandled promise rejection, we will end this loop which will end execution of this instance (see startTask)
       return true; // needs to be true so parent loop knows to end task
+    }
+    finally {
+      if (dispose && this.api instanceof StatefulModelProvider) {
+        await this.api.dispose();
+      }
     }
   }
 

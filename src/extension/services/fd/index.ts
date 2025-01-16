@@ -1,13 +1,12 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
-import { join } from "node:path";
 import * as path from "node:path";
 import * as process from "node:process";
 import * as readline from "node:readline";
 import * as childProcess from "node:child_process";
 
+import { workspaceRoot } from "@extension/constants";
 import { arePathsEqual } from "@extension/utils/path";
-import { extensionPath, workspaceRoot } from "@extension/constants";
 
 
 // TODO: Bundler does not pick this up correctly yet.
@@ -20,6 +19,7 @@ const DEFAULT_LIMIT = 1000;
 
 interface FdOptions {
   recursive?: boolean;
+  relative?: boolean;
 
   limit?: number;
   filePattern?: string;
@@ -83,6 +83,7 @@ export async function listFiles(
 ): Promise<[string[], boolean]> {
   const {
     recursive = false,
+    relative = false,
     limit = DEFAULT_LIMIT,
     filePattern
   } = options;
@@ -105,11 +106,12 @@ export async function listFiles(
   const args = [
     "--search-path",
     dirPath,
-    "--absolute-path",
     "--hidden",
     "--exclude",
     ".git" // .gitignore is respected by default, but .git is usually not listed in .gitignore
   ];
+
+  args.push(relative ? "" : "--absolute-path");
 
   // Handle recursive vs non-recursive search
   if (!recursive) {
