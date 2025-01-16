@@ -1,11 +1,11 @@
-import type { McpHub } from "../../services/mcp/McpHub";
+import type { McpHub } from "@extension/services/mcp/McpHub";
 
 import os from "node:os";
 
 import osName from "os-name";
 import defaultShell from "default-shell";
 
-import { getEnvironmentInfo } from "../../integrations/workspace/get-env-info";
+import { getEnvironmentInfo } from "@extension/integrations/workspace/get-env-info";
 
 
 export async function SYSTEM_PROMPT(cwd: string, supportsComputerUse: boolean, mcpHub: McpHub): Promise<string> {

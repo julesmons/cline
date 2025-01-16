@@ -1,6 +1,7 @@
-import * as path from "node:path";
-
+import * as vscode from "vscode";
 import Parser from "web-tree-sitter";
+
+import { extensionUri } from "@extension/constants";
 
 import { supportedQueries } from "./queries";
 import { importTreeSitterWasm } from "./wasm";
@@ -39,10 +40,22 @@ export class LanguageParserManager {
   }
 
   private async initialize(): Promise<void> {
-    if (!this.isInitialized) {
-      await Parser.init();
-      this.isInitialized = true;
+
+    if (this.isInitialized) {
+      return;
     }
+
+    const wasmUrl = await import("web-tree-sitter/tree-sitter.wasm");
+    const fileName: string = wasmUrl.default.toString().split("/").pop() ?? "tree-sitter.wasm";
+    const wasmPath: vscode.Uri = vscode.Uri.joinPath(extensionUri, "dist", "assets", fileName);
+
+    await Parser.init({
+      locateFile(_scriptName: string, _scriptDirectory: string): string {
+        return wasmPath.fsPath;
+      }
+    });
+
+    this.isInitialized = true;
   }
 
   public async getParser(ext: string): Promise<LanguageParser> {

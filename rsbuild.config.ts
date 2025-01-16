@@ -92,7 +92,7 @@ export default defineConfig({
     bundlerChain: (chain) => {
       chain.module
         .rule("RULE.WASM")
-        .test(/tree-sitter-.+\.wasm$/)
+        .test(/tree-sitter(?:-.+)?\.wasm$/)
         .type("asset/resource");
     }
   }
