@@ -73,7 +73,7 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
   get isHot(): boolean {
     if (this.lastActivityTime === 0 || this.isDisposed)
       return false;
-    return Date.now() - this.lastActivityTime < this.cooldownTimeout;
+    return (Date.now() - this.lastActivityTime) < this.cooldownTimeout;
   }
 
   private cleanup(): void {
@@ -296,7 +296,7 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 export type TerminalProcessResultPromise = TerminalProcess & Promise<void>;
 
 export function mergePromise(
-  process: TerminalProcess,
+  terminalProcess: TerminalProcess,
   promise: Promise<void>
 ): TerminalProcessResultPromise {
   // Explicitly type Promise methods
@@ -322,7 +322,7 @@ export function mergePromise(
     const fn = proto[method];
     if (typeof fn === "function") {
       const boundMethod = fn.bind(promise);
-      Object.defineProperty(process, method, {
+      Object.defineProperty(terminalProcess, method, {
         enumerable: true,
         configurable: true,
         writable: true,
@@ -331,5 +331,5 @@ export function mergePromise(
     }
   });
 
-  return process as TerminalProcessResultPromise;
+  return terminalProcess as TerminalProcessResultPromise;
 }
