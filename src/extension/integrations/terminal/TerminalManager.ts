@@ -4,7 +4,7 @@ import type { TerminalProcessResultPromise } from "./TerminalProcess";
 import * as vscode from "vscode";
 import pWaitFor from "p-wait-for";
 
-import { arePathsEqual } from "../../utils/path";
+import { arePathsEqual } from "@extension/utils/path";
 
 import { TerminalRegistry } from "./TerminalRegistry";
 import { mergePromise, TerminalProcess } from "./TerminalProcess";
@@ -129,16 +129,16 @@ export class TerminalManager {
     // if shell integration is already active, run the command immediately
     if (terminalInfo.terminal.shellIntegration) {
       terminalProcess.waitForShellIntegration = false;
-      terminalProcess.run(terminalInfo.terminal, command);
+      void terminalProcess.run(terminalInfo.terminal, command);
     }
     else {
       // docs recommend waiting 3s for shell integration to activate
-      pWaitFor(() => terminalInfo.terminal.shellIntegration !== undefined, { timeout: 4000 })
+      void pWaitFor(() => terminalInfo.terminal.shellIntegration !== undefined, { timeout: 4000 })
         .finally(() => {
           const existingProcess = this.processes.get(terminalInfo.id);
           if (existingProcess && existingProcess.waitForShellIntegration) {
             existingProcess.waitForShellIntegration = false;
-            existingProcess.run(terminalInfo.terminal, command);
+            void existingProcess.run(terminalInfo.terminal, command);
           }
         });
     }
