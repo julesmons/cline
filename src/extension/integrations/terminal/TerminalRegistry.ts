@@ -55,11 +55,11 @@ export class TerminalRegistry {
     return terminal.exitStatus !== undefined;
   }
 
-  static removeTerminal(id: number) {
+  static removeTerminal(id: number): void {
     this.terminals = this.terminals.filter(t => t.id !== id);
   }
 
-  static updateTerminal(id: number, updates: Partial<TerminalInfo>) {
+  static updateTerminal(id: number, updates: Partial<TerminalInfo>): void {
     const terminal = this.getTerminal(id);
     if (terminal) {
       Object.assign(terminal, updates);

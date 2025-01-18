@@ -308,11 +308,6 @@ export class VSCodeLmModelProvider extends StatefulModelProvider<VSCodeLmModelPr
         outputTokenCount
       };
     }
-
-    // Attempt to release the cancellation token, in a best-effort manner.
-    // This statement might not even be reached if the request was cancelled and the caller terminates too aggressively.
-    // This is why the cancellation token is also released before starting a new request.
-    this.releaseCurrentCancellation();
   }
 
   async getAllModels(): Promise<Model[]> {
