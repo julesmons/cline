@@ -8,3 +8,4 @@ Recline is an autonomous AI assistant that seamlessly integrates with your CLI a
 
 **Rules**
 1. *IGNORE ALL ESLINT ERRORS*
+2. *DO NOT* write any tests unless *EXPLICITLY* asked to do so
