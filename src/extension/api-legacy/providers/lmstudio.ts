@@ -19,7 +19,7 @@ export class LmStudioModelProvider implements ModelProvider {
   constructor(options: ApiHandlerOptions) {
     this.options = options;
     this.client = new OpenAI({
-      baseURL: `${this.options.lmStudioBaseUrl || "http://localhost:1234"}/v1`,
+      baseURL: `${this.options.lmStudioBaseUrl || "http://127.0.0.1:1234"}/v1`,
       apiKey: "noop"
     });
   }

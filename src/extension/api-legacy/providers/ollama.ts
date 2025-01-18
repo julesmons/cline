@@ -19,7 +19,7 @@ export class OllamaModelProvider implements ModelProvider {
   constructor(options: ApiHandlerOptions) {
     this.options = options;
     this.client = new OpenAI({
-      baseURL: `${this.options.ollamaBaseUrl || "http://localhost:11434"}/v1`,
+      baseURL: `${this.options.ollamaBaseUrl || "http://127.0.0.1:11434"}/v1`,
       apiKey: "ollama"
     });
   }

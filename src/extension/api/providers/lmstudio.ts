@@ -31,7 +31,7 @@ export class LMStudioProvider extends APIModelProvider<LMStudioModelProviderConf
   constructor({ apiBaseURL, ...options }: Record<string, unknown>) {
     super("LMStudio", {
       ...options,
-      apiBaseURL: (apiBaseURL as string) || "http://localhost:8080"
+      apiBaseURL: (apiBaseURL as string) || "http://127.0.0.1:8080"
     });
   }
 
@@ -39,7 +39,7 @@ export class LMStudioProvider extends APIModelProvider<LMStudioModelProviderConf
     if (this.client != null && this.model != null) {
       try {
         await this.client.llm.unload(
-          this.config.modelId
+          this.model.identifier
         );
       }
       catch (error: unknown) {

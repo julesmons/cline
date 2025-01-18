@@ -12,7 +12,7 @@ export class OpenAILMStudioModelProvider extends OpenAICompatibleModelProvider<O
   constructor({ apiBaseURL, ...options }: Record<string, unknown>) {
     super("OpenAI LMStudio", {
       ...options,
-      apiBaseURL: (apiBaseURL as string) || "http://localhost:1234/v1"
+      apiBaseURL: (apiBaseURL as string) || "http://127.0.0.1:1234/v1"
     });
   }
 

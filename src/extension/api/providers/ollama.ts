@@ -28,7 +28,7 @@ export class OllamaModelProvider<TConfig extends OllamaModelProviderConfig> exte
   constructor({ apiBaseURL, ...options }: Record<string, unknown>) {
     super("Ollama", {
       ...options,
-      apiBaseURL: (apiBaseURL as string) || "https://api.deepseek.com"
+      apiBaseURL: (apiBaseURL as string) || "http://127.0.0.1:11434"
     });
   }
 
