@@ -1,6 +1,5 @@
 import type { Mention, MentionContent } from "./types";
 
-import fs from "node:fs/promises";
 import * as path from "node:path";
 
 import * as vscode from "vscode";

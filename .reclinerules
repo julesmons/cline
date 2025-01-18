@@ -2,7 +2,9 @@
 This is the codebase of the Recline VSCode extension itself.
 Recline is an autonomous AI assistant that seamlessly integrates with your CLI and editor to create, edit, and run; redefining how you code.
 
+**Facts**
+- The project uses rsbuild to build (Note: NOT a typo and NOT esbuild)
+- The project uses pnpm for dependency management
+
 **Rules**
-1. The project uses unbuild to build (do not change)
-2. The project uses pnpm for dependency management (do not change)
-3. *IGNORE ALL ESLINT ERRORS*
+1. *IGNORE ALL ESLINT ERRORS*
