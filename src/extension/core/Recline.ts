@@ -65,6 +65,7 @@ import { parseAssistantMessage } from "./assistant-message";
 import { truncateHalfConversation } from "./sliding-window";
 import { constructNewFileContent } from "./assistant-message/diff";
 import { addUserInstructions, SYSTEM_PROMPT } from "./prompts/system";
+import { generateInlineDiffs } from "./assistant-message/generateInlineDiffs";
 
 
 type ToolResponse = string | Array<Anthropic.TextBlockParam | Anthropic.ImageBlockParam>;
@@ -1286,8 +1287,8 @@ export class Recline {
                 && (diff == null || diff.length === 0)
               )
             ) {
-            // checking for content/diff ensures relPath is complete
-            // wait so we can determine if it's a new file or editing an existing file
+              // checking for content/diff ensures relPath is complete
+              // wait so we can determine if it's a new file or editing an existing file
               break;
             }
             // Check if file exists using cached map or fs.access
@@ -1302,11 +1303,11 @@ export class Recline {
             }
 
             try {
-            // Construct newContent from diff
+              // Construct newContent from diff
               let newContent: string;
               if (diff != null && diff.length > 0) {
                 if (!model.id.includes("claude")) {
-                // deepseek models tend to use unescaped html entities in diffs
+                  // deepseek models tend to use unescaped html entities in diffs
                   diff = fixModelHtmlEscaping(diff);
                   diff = removeInvalidChars(diff);
                 }
@@ -1338,7 +1339,7 @@ export class Recline {
 
                 // pre-processing newContent for cases where weaker models might add artifacts like markdown codeblock markers (deepseek/llama) or extra escape characters (gemini)
                 if (newContent.startsWith("```")) {
-                // this handles cases where it includes language specifiers like ```python ```js
+                  // this handles cases where it includes language specifiers like ```python ```js
                   newContent = newContent.split("\n").slice(1).join("\n").trim();
                 }
                 if (newContent.endsWith("```")) {
@@ -1346,13 +1347,13 @@ export class Recline {
                 }
 
                 if (!model.id.includes("claude")) {
-                // it seems not just llama models are doing this, but also gemini and potentially others
+                  // it seems not just llama models are doing this, but also gemini and potentially others
                   newContent = fixModelHtmlEscaping(newContent);
                   newContent = removeInvalidChars(newContent);
                 }
               }
               else {
-              // can't happen, since we already checked for content/diff above. but need to do this for type error
+                // can't happen, since we already checked for content/diff above. but need to do this for type error
                 break;
               }
 
@@ -1365,7 +1366,7 @@ export class Recline {
               };
 
               if (block.partial) {
-              // update gui message
+                // update gui message
                 const partialMessage = JSON.stringify(sharedMessageProps);
                 if (this.shouldAutoApproveTool(block.name)) {
                   await this.removeLastPartialMessageIfExistsWithType("ask", "tool"); // in case the user changes auto-approval settings mid stream
@@ -1377,7 +1378,7 @@ export class Recline {
                 }
                 // update editor
                 if (!this.diffViewProvider.isEditing) {
-                // open the editor and prepare to stream content in
+                  // open the editor and prepare to stream content in
                   await this.diffViewProvider.open(relPath);
                 }
                 // editor is open, stream content in
@@ -1409,7 +1410,7 @@ export class Recline {
                 // it's important to note how this function works, you can't make the assumption that the block.partial conditional will always be called since it may immediately get complete, non-partial data. So this part of the logic will always be called.
                 // in other words, you must always repeat the block.partial logic here
                 if (!this.diffViewProvider.isEditing) {
-                // show gui message before showing edit animation
+                  // show gui message before showing edit animation
                   const partialMessage = JSON.stringify(sharedMessageProps);
                   await this.ask("tool", partialMessage, true).catch(() => { }); // sending true for partial even though it's not a partial, this shows the edit row before the content is streamed into the editor
                   await this.diffViewProvider.open(relPath);
@@ -1422,12 +1423,6 @@ export class Recline {
                 const completeMessage = JSON.stringify({
                   ...sharedMessageProps,
                   content: (diff ?? "") || content
-                // ? formatResponse.createPrettyPatch(
-                //   relPath,
-                //   this.diffViewProvider.originalContent,
-                //   newContent,
-                //  )
-                // : undefined,
                 } satisfies ReclineSayTool);
 
                 if (this.shouldAutoApproveTool(block.name)) {
@@ -1439,18 +1434,17 @@ export class Recline {
                   await delay(3_500);
                 }
                 else {
-                // If auto-approval is enabled but this tool wasn't auto-approved, send notification
+                  // If auto-approval is enabled but this tool wasn't auto-approved, send notification
                   showNotificationForApprovalIfAutoApprovalEnabled(
                     `Recline wants to ${fileExists ? "edit" : "create"} ${path.basename(relPath)}`
                   );
                   await this.removeLastPartialMessageIfExistsWithType("say", "tool");
-                  // const didApprove = await askApproval("tool", completeMessage)
 
                   // Need a more customized tool response for file edits to highlight the fact that the file was not updated (particularly important for deepseek)
                   let didApprove = true;
                   const { response, text, images } = await this.ask("tool", completeMessage, false);
                   if (response !== "yesButtonClicked") {
-                  // TODO: add similar context for other tool denial responses, to emphasize ie that a command was not run
+                    // TODO: add similar context for other tool denial responses, to emphasize ie that a command was not run
                     const fileDeniedNote = fileExists
                       ? "The file was not updated, and maintains its original contents."
                       : "The file was not created.";
@@ -1481,6 +1475,15 @@ export class Recline {
                 const { newProblemsMessage, userEdits, autoFormattingEdits, finalContent }
                   = await this.diffViewProvider.saveChanges();
                 this.didEditFile = true; // used to determine if we should wait for busy terminal to update before sending api request
+
+                // Generate inline diffs or descriptive comments
+                const finalContentWithInlineDiffs = generateInlineDiffs(
+                  this.diffViewProvider.originalContent ?? "",
+                  finalContent ?? "",
+                  userEdits,
+                  autoFormattingEdits
+                );
+
                 if (userEdits != null && userEdits.length > 0) {
                   await this.say(
                     "user_feedback_diff",
@@ -1491,27 +1494,22 @@ export class Recline {
                     } satisfies ReclineSayTool)
                   );
                   pushToolResult(
-                    `The user made the following updates to your content:\n\n${userEdits}\n\n${autoFormattingEdits != null && autoFormattingEdits.length > 0
-                      ? `The user's editor also applied the following auto-formatting to your content:\n\n${autoFormattingEdits}\n\n(Note: Pay close attention to changes such as single quotes being converted to double quotes, semicolons being removed or added, long lines being broken into multiple lines, adjusting indentation style, adding/removing trailing commas, etc. This will help you ensure future SEARCH/REPLACE operations to this file are accurate.)\n\n`
-                      : ""
-                    }The updated content, which includes both your original modifications and the additional edits, has been successfully saved to ${relPath.toPosix()}. Here is the full, updated content of the file that was saved:\n\n`
-                    + `<final_file_content path="${relPath.toPosix()}">\n${finalContent}\n</final_file_content>\n\n`
+                    `The user made the following updates to your content:\n\n${userEdits}\n\nThe updated content, which includes both your original modifications and the additional edits, has been successfully saved to ${relPath.toPosix()}. Here is the full, updated content of the file that was saved:\n\n`
+                    + `<final_file_content path="${relPath.toPosix()}">\n${finalContentWithInlineDiffs}\n</final_file_content>\n\n`
                     + `Please note:\n`
                     + `1. You do not need to re-write the file with these changes, as they have already been applied.\n`
                     + `2. Proceed with the task using this updated file content as the new baseline.\n`
                     + `3. If the user's edits have addressed part of the task or changed the requirements, adjust your approach accordingly.`
-                    + `4. IMPORTANT: For any future changes to this file, use the final_file_content shown above as your reference. This content reflects the current state of the file, including both user edits and any auto-formatting (e.g., if you used single quotes but the formatter converted them to double quotes). Always base your SEARCH/REPLACE operations on this final version to ensure accuracy.\n`
+                    + `4. IMPORTANT: For any future changes to this file, use the final_file_content shown above as your reference. This content reflects the current state of the file, including user edits. Always base your SEARCH/REPLACE operations on this final version to ensure accuracy.\n`
                     + `${newProblemsMessage}`
                   );
                 }
                 else {
                   pushToolResult(
-                    `The content was successfully saved to ${relPath.toPosix()}.\n\n${autoFormattingEdits != null && autoFormattingEdits.length > 0
-                      ? `Along with your edits, the user's editor applied the following auto-formatting to your content:\n\n${autoFormattingEdits}\n\n(Note: Pay close attention to changes such as single quotes being converted to double quotes, semicolons being removed or added, long lines being broken into multiple lines, adjusting indentation style, adding/removing trailing commas, etc. This will help you ensure future SEARCH/REPLACE operations to this file are accurate.)\n\n`
-                      : ""
-                    }Here is the full, updated content of the file that was saved:\n\n`
-                    + `<final_file_content path="${relPath.toPosix()}">\n${finalContent}\n</final_file_content>\n\n`
-                    + `IMPORTANT: For any future changes to this file, use the final_file_content shown above as your reference. This content reflects the current state of the file, including any auto-formatting (e.g., if you used single quotes but the formatter converted them to double quotes). Always base your SEARCH/REPLACE operations on this final version to ensure accuracy.\n\n`
+                    `The content was successfully saved to ${relPath.toPosix()}.\n\n`
+                    + `Here is the full, updated content of the file that was saved:\n\n`
+                    + `<final_file_content path="${relPath.toPosix()}">\n${finalContentWithInlineDiffs}\n</final_file_content>\n\n`
+                    + `IMPORTANT: For any future changes to this file, use the final_file_content shown above as your reference. This content reflects the current state of the file, including any auto-formatting. Always base your SEARCH/REPLACE operations on this final version to ensure accuracy.\n\n`
                     + `${newProblemsMessage}`
                   );
                 }

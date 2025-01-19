@@ -2,6 +2,8 @@ import type { Mention } from "./types";
 
 import * as vscode from "vscode";
 
+import { workspaceRoot } from "@extension/constants";
+
 import { MentionType } from "./types";
 import { MentionParser } from "./MentionParser";
 import { MentionContentFetcher } from "./MentionContentFetcher";
@@ -48,12 +50,11 @@ export function openMention(mention?: string): void {
  * Opens a file system mention (file or folder)
  */
 function openFileSystemMention(mention: Mention): void {
-  const cwd = vscode.workspace.workspaceFolders?.map(folder => folder.uri.fsPath)[0];
-  if (cwd == null || cwd.length === 0) {
+  if (workspaceRoot == null || workspaceRoot.length === 0) {
     return;
   }
 
-  const absPath = vscode.Uri.file(vscode.Uri.joinPath(vscode.Uri.file(cwd), mention.value).fsPath);
+  const absPath = vscode.Uri.file(vscode.Uri.joinPath(vscode.Uri.file(workspaceRoot), mention.value).fsPath);
 
   if (mention.type === MentionType.Folder) {
     vscode.commands.executeCommand("revealInExplorer", absPath);

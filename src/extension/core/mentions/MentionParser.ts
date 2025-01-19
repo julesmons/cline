@@ -1,16 +1,14 @@
 import type { Mention } from "./types";
 
+import { statSync } from "node:fs";
+import { resolve } from "node:path";
+
+import { mentionRegexGlobal } from "@shared/context-mentions";
+
+import { workspaceRoot } from "@extension/constants";
+
 import { InvalidMentionError, MentionType } from "./types";
 
-
-/**
- * Regex for matching mentions while avoiding TypeScript path aliases:
- * - Negative lookbehind (?<!from\s|import\s) prevents matching after import statements
- * - Negative lookbehind (?<!["']\s*) prevents matching inside string literals in imports
- * - Matches file paths, URLs, or the special 'problems' keyword
- * - Allows for more flexible path formats while still avoiding false positives
- */
-const MENTION_REGEX = /(?<!from\s|import\s|["']\s*|@)@(\/[^\s.,;:!?]+|https?:\/\/\S+?|problems)(?=[.,;:!?]?(?:\s|$)|$)/g;
 
 /**
  * Handles parsing and validation of mentions in text
@@ -36,8 +34,9 @@ export class MentionParser {
     // File system mention
     if (value.startsWith("/")) {
       const mentionPath = value.slice(1);
+      const mentionStat = statSync(resolve(workspaceRoot, mentionPath)); // @TODO: Replace with vscode fs??
       return {
-        type: mentionPath.endsWith("/") ? MentionType.Folder : MentionType.File,
+        type: mentionStat.isDirectory() ? MentionType.Folder : MentionType.File,
         value: mentionPath,
         raw
       };
@@ -60,7 +59,7 @@ export class MentionParser {
    */
   public static parseMentions(text: string): Mention[] {
     const mentions: Mention[] = [];
-    const matches = text.matchAll(MENTION_REGEX);
+    const matches = text.matchAll(mentionRegexGlobal);
 
     for (const match of matches) {
       try {
@@ -84,7 +83,7 @@ export class MentionParser {
    * Replaces mentions in text with a more readable format
    */
   public static replaceMentionsWithLabels(text: string): string {
-    return text.replace(MENTION_REGEX, (match, mention) => {
+    return text.replace(mentionRegexGlobal, (match, mention) => {
       if (mention.startsWith("http")) {
         return `'${mention}' (see below for site content)`;
       }

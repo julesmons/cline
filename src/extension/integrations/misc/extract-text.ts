@@ -2,9 +2,6 @@ import fs from "node:fs/promises";
 import * as path from "node:path";
 
 import mammoth from "mammoth";
-
-
-// @ts-ignore-next-line
 import pdf from "pdf-parse/lib/pdf-parse";
 import { isBinaryFile } from "isbinaryfile";
 
@@ -13,7 +10,7 @@ export async function extractTextFromFile(filePath: string): Promise<string> {
   try {
     await fs.access(filePath);
   }
-  catch (error) {
+  catch {
     throw new Error(`File not found: ${filePath}`);
   }
   const fileExtension = path.extname(filePath).toLowerCase();
@@ -24,7 +21,7 @@ export async function extractTextFromFile(filePath: string): Promise<string> {
       return extractTextFromDOCX(filePath);
     case ".ipynb":
       return extractTextFromIPYNB(filePath);
-    default:
+    default: {
       const isBinary = await isBinaryFile(filePath).catch(() => false);
       if (!isBinary) {
         return fs.readFile(filePath, "utf8");
@@ -32,6 +29,7 @@ export async function extractTextFromFile(filePath: string): Promise<string> {
       else {
         throw new Error(`Cannot read text for file type: ${fileExtension}`);
       }
+    }
   }
 }
 
