@@ -35,6 +35,7 @@
   "svg.preview.background": "editor",
   "cSpell.words": [
     "claude",
+    "gemini",
     "ollama",
     "openai",
     "rsbuild"
