@@ -7,7 +7,7 @@ import { VSCodeButton, VSCodeRadio, VSCodeRadioGroup, VSCodeTextField } from "@v
 
 import { vscodeApiWrapper } from "@webview-ui/utils/vscode";
 import { formatLargeNumber } from "@webview-ui/utils/format";
-import { useExtensionState } from "@webview-ui/context/ExtensionStateContext";
+import { useReclineState } from "@webview-ui/context/ReclineStateContext";
 
 
 interface HistoryViewProps {
@@ -17,7 +17,7 @@ interface HistoryViewProps {
 type SortOption = "newest" | "oldest" | "mostExpensive" | "mostTokens" | "mostRelevant";
 
 function HistoryView({ onDone }: HistoryViewProps) {
-  const { taskHistory } = useExtensionState();
+  const { taskHistory } = useReclineState();
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState<SortOption>("newest");
   const [lastNonRelevantSort, setLastNonRelevantSort] = useState<SortOption | null>("newest");

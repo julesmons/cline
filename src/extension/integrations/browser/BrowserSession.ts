@@ -1,7 +1,7 @@
 import type * as vscode from "vscode";
 import type { Browser, ConsoleMessage, launch, Page } from "puppeteer-core";
 
-import type { BrowserActionResult } from "@shared/ExtensionMessage";
+import type { BrowserActionResult } from "@shared/ReclineEvent";
 
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
@@ -11,8 +11,7 @@ import pWaitFor from "p-wait-for";
 import { delay } from "es-toolkit";
 import PCR from "puppeteer-chromium-resolver";
 import { TimeoutError } from "puppeteer-core";
-
-import { extractMessageFromThrow } from "@shared/utils/exception";
+import { extractMessageFromThrow } from "src/common/utils/exception";
 
 import { fileExistsAtPath } from "@extension/utils/fs";
 

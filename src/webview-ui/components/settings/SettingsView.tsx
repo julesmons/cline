@@ -2,7 +2,7 @@ import { memo, useEffect, useState } from "react";
 import { VSCodeButton, VSCodeLink, VSCodeTextArea } from "@vscode/webview-ui-toolkit/react";
 
 import { vscodeApiWrapper } from "@webview-ui/utils/vscode";
-import { useExtensionState } from "@webview-ui/context/ExtensionStateContext";
+import { useReclineState } from "@webview-ui/context/ReclineStateContext";
 import { validateApiConfiguration, validateModelId } from "@webview-ui/utils/validate";
 
 import ApiOptions from "./ApiOptions";
@@ -14,7 +14,7 @@ interface SettingsViewProps {
 
 function SettingsView({ onDone }: SettingsViewProps) {
   const { apiConfiguration, version, customInstructions, setCustomInstructions, openRouterModels }
-		= useExtensionState();
+		= useReclineState();
   const [apiErrorMessage, setApiErrorMessage] = useState<string | undefined>(undefined);
   const [modelIdErrorMessage, setModelIdErrorMessage] = useState<string | undefined>(undefined);
   const handleSubmit = () => {

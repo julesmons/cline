@@ -5,7 +5,7 @@ import { useCallback, useState } from "react";
 import { VSCodeCheckbox, VSCodeTextField } from "@vscode/webview-ui-toolkit/react";
 
 import { vscodeApiWrapper } from "@webview-ui/utils/vscode";
-import { useExtensionState } from "@webview-ui/context/ExtensionStateContext";
+import { useReclineState } from "@webview-ui/context/ReclineStateContext";
 
 
 interface AutoApproveMenuProps {
@@ -52,7 +52,7 @@ const ACTION_METADATA: {
 ];
 
 function AutoApproveMenu({ style }: AutoApproveMenuProps) {
-  const { autoApprovalSettings } = useExtensionState();
+  const { autoApprovalSettings } = useReclineState();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isHoveringCollapsibleSection, setIsHoveringCollapsibleSection] = useState(false);
 

@@ -1,6 +1,6 @@
 import type { WebviewApi } from "vscode-webview";
 
-import type { WebviewMessage } from "../../../src/shared/WebviewMessage";
+import type { ReclineWebviewEvent } from "../../common/ReclineWebviewEvent";
 
 
 /**
@@ -49,7 +49,7 @@ class VSCodeAPIWrapper {
    *
    * @param message Abitrary data (must be JSON serializable) to send to the extension context.
    */
-  public postMessage(message: WebviewMessage) {
+  public postMessage(message: ReclineWebviewEvent) {
     if (this.vsCodeApi) {
       this.vsCodeApi.postMessage(message);
     }

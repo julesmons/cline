@@ -3,7 +3,7 @@ import type {
   BrowserActionResult,
   ReclineMessage,
   ReclineSayBrowserAction
-} from "@shared/ExtensionMessage";
+} from "@shared/ReclineEvent";
 
 import { useSize } from "react-use";
 import { isEqual } from "es-toolkit";

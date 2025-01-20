@@ -3,7 +3,7 @@ import type { Mention } from "./types";
 import { statSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { mentionRegexGlobal } from "@shared/context-mentions";
+import { mentionRegexGlobal } from "@shared/constants/mentions";
 
 import { workspaceRoot } from "@extension/constants";
 

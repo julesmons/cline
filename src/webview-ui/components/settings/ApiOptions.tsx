@@ -1,6 +1,6 @@
 import type * as vscode from "vscode";
 
-import type { ExtensionMessage } from "@shared/ExtensionMessage";
+import type { ReclineEvent } from "@shared/ReclineEvent";
 import type {
   ApiConfiguration,
   ModelInfo
@@ -18,7 +18,7 @@ import {
   VSCodeTextField
 } from "@vscode/webview-ui-toolkit/react";
 
-import { parseVsCodeLmModelSelector, stringifyVsCodeLmModelSelector } from "@shared/vsCodeSelectorUtils";
+import { parseVsCodeLmModelSelector, stringifyVsCodeLmModelSelector } from "src/common/vsCodeSelectorUtils";
 import {
   anthropicDefaultModelId,
   anthropicModels,
@@ -39,7 +39,7 @@ import {
 } from "@shared/api";
 
 import { vscodeApiWrapper } from "@webview-ui/utils/vscode";
-import { useExtensionState } from "@webview-ui/context/ExtensionStateContext";
+import { useReclineState } from "@webview-ui/context/ReclineStateContext";
 import VSCodeButtonLink from "@webview-ui/components/common/VSCodeButtonLink";
 
 import OpenRouterModelPicker, {
@@ -55,7 +55,7 @@ interface ApiOptionsProps {
 }
 
 function ApiOptions({ showModelOptions, apiErrorMessage, modelIdErrorMessage }: ApiOptionsProps) {
-  const { apiConfiguration, setApiConfiguration, uriScheme } = useExtensionState();
+  const { apiConfiguration, setApiConfiguration, uriScheme } = useReclineState();
   const [ollamaModels, setOllamaModels] = useState<string[]>([]);
   const [lmStudioModels, setLmStudioModels] = useState<string[]>([]);
   const [vsCodeLmSelectors, setVsCodeLmSelectors] = useState<vscode.LanguageModelChatSelector[]>([]);
@@ -91,7 +91,7 @@ function ApiOptions({ showModelOptions, apiErrorMessage, modelIdErrorMessage }: 
   useInterval(requestLocalModels, selectedProvider === "ollama" || selectedProvider === "lmstudio" || selectedProvider === "vscode-lm" ? 2000 : null);
 
   const handleMessage = useCallback((event: MessageEvent) => {
-    const message: ExtensionMessage = event.data;
+    const message: ReclineEvent = event.data;
     if (message.type === "ollamaModels" && message.ollamaModels) {
       setOllamaModels(message.ollamaModels);
     }

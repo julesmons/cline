@@ -6,7 +6,7 @@ import { useRemark } from "react-remark";
 import { visit } from "unist-util-visit";
 import rehypeHighlight from "rehype-highlight";
 
-import { useExtensionState } from "@webview-ui/context/ExtensionStateContext";
+import { useReclineState } from "@webview-ui/context/ReclineStateContext";
 
 
 export const CODE_BLOCK_BG_COLOR = "var(--vscode-editor-background, --vscode-sideBar-background, rgb(30 30 30))";
@@ -116,7 +116,7 @@ const StyledPre = styled.pre<{ theme: any }>`
 `;
 
 const CodeBlock = memo(({ source, forceWrap = false }: CodeBlockProps) => {
-  const { theme } = useExtensionState();
+  const { theme } = useReclineState();
   const [reactContent, setMarkdownSource] = useRemark({
     remarkPlugins: [
       () => {

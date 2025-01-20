@@ -1,24 +1,24 @@
-import type { McpServer } from "../../../src/shared/mcp";
+import type { McpServer } from "../../common/mcp";
 import type {
   ApiConfiguration,
   ModelInfo
-} from "../../../src/shared/api";
-import type { ExtensionMessage, ExtensionState } from "../../../src/shared/ExtensionMessage";
+} from "../../common/api";
+import type { ReclineEvent, ReclineState } from "../../common/ReclineEvent";
 
 import { useEvent } from "react-use";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 import { vscodeApiWrapper } from "../utils/vscode";
-import { findLastIndex } from "../../../src/shared/array";
+import { findLastIndex } from "../../common/utils/array";
 import { convertTextMateToHljs } from "../utils/textMateToHljs";
-import { DEFAULT_AUTO_APPROVAL_SETTINGS } from "../../../src/shared/AutoApprovalSettings";
+import { DEFAULT_AUTO_APPROVAL_SETTINGS } from "../../common/AutoApprovalSettings";
 import {
   openRouterDefaultModelId,
   openRouterDefaultModelInfo
-} from "../../../src/shared/api";
+} from "../../common/api";
 
 
-interface ExtensionStateContextType extends ExtensionState {
+interface ReclineStateContextType extends ReclineState {
   didHydrateState: boolean;
   showWelcome: boolean;
   theme: any;
@@ -30,10 +30,10 @@ interface ExtensionStateContextType extends ExtensionState {
   setShowAnnouncement: (value: boolean) => void;
 }
 
-const ExtensionStateContext = createContext<ExtensionStateContextType | undefined>(undefined);
+const ReclineStateContext = createContext<ReclineStateContextType | undefined>(undefined);
 
-export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, setState] = useState<ExtensionState>({
+export const ReclineStateContextProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [state, setState] = useState<ReclineState>({
     version: "",
     reclineMessages: [],
     taskHistory: [],
@@ -50,7 +50,7 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
   const [mcpServers, setMcpServers] = useState<McpServer[]>([]);
 
   const handleMessage = useCallback((event: MessageEvent) => {
-    const message: ExtensionMessage = event.data;
+    const message: ReclineEvent = event.data;
     switch (message.type) {
       case "state": {
         setState(message.state!);
@@ -119,7 +119,7 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
     vscodeApiWrapper.postMessage({ type: "webviewDidLaunch" });
   }, []);
 
-  const contextValue: ExtensionStateContextType = {
+  const contextValue: ReclineStateContextType = {
     ...state,
     didHydrateState,
     showWelcome,
@@ -132,13 +132,13 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
     setShowAnnouncement: value => setState(prevState => ({ ...prevState, shouldShowAnnouncement: value }))
   };
 
-  return <ExtensionStateContext.Provider value={contextValue}>{children}</ExtensionStateContext.Provider>;
+  return <ReclineStateContext.Provider value={contextValue}>{children}</ReclineStateContext.Provider>;
 };
 
-export function useExtensionState() {
-  const context = useContext(ExtensionStateContext);
+export function useReclineState() {
+  const context = useContext(ReclineStateContext);
   if (context == null) {
-    throw new Error("useExtensionState must be used within an ExtensionStateContextProvider");
+    throw new Error("useReclineState must be used within an ReclineStateContextProvider");
   }
   return context;
 }

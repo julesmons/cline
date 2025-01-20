@@ -1,10 +1,10 @@
 import type {
-  ExtensionMessage,
+  ReclineEvent,
   ReclineAsk,
   ReclineMessage,
   ReclineSayBrowserAction,
   ReclineSayTool
-} from "@shared/ExtensionMessage";
+} from "@shared/ReclineEvent";
 
 import { debounce } from "es-toolkit";
 import styled from "styled-components";
@@ -13,14 +13,14 @@ import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import { useDeepCompareEffect, useEvent, useMount } from "react-use";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { findLast } from "@shared/array";
+import { findLast } from "@shared/utils/array";
 import { getApiMetrics } from "@shared/getApiMetrics";
-import { combineApiRequests } from "@shared/combineApiRequests";
-import { combineCommandSequences } from "@shared/combineCommandSequences";
+import { combineApiRequests } from "@shared/utils/combineApiRequests";
+import { combineCommandSequences } from "@shared/utils/combineCommandSequences";
 
 import { vscodeApiWrapper } from "@webview-ui/utils/vscode";
 import HistoryPreview from "@webview-ui/components/history/HistoryPreview";
-import { useExtensionState } from "@webview-ui/context/ExtensionStateContext";
+import { useReclineState } from "@webview-ui/context/ReclineStateContext";
 import { normalizeApiConfiguration } from "@webview-ui/components/settings/ApiOptions";
 
 import ChatRow from "./ChatRow";
@@ -41,7 +41,7 @@ interface ChatViewProps {
 export const MAX_IMAGES_PER_MESSAGE = 20; // Anthropic limits to 20 images
 
 function ChatView({ isHidden, showAnnouncement, hideAnnouncement, showHistoryView }: ChatViewProps) {
-  const { version, reclineMessages: messages, taskHistory, apiConfiguration } = useExtensionState();
+  const { version, reclineMessages: messages, taskHistory, apiConfiguration } = useReclineState();
 
   // const task = messages.length > 0 ? (messages[0].say === "task" ? messages[0] : undefined) : undefined) : undefined
   const task = useMemo(() => messages.at(0), [messages]); // leaving this less safe version here since if the first message is not a task, then the extension is in a bad state and needs to be debugged (see Recline.abort)
@@ -383,7 +383,7 @@ function ChatView({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 
   const handleMessage = useCallback(
     (e: MessageEvent) => {
-      const message: ExtensionMessage = e.data;
+      const message: ReclineEvent = e.data;
       switch (message.type) {
         case "action":
           switch (message.action!) {

@@ -1,6 +1,6 @@
-import type { ApiConfiguration, ModelInfo } from "../../../src/shared/api";
+import type { ApiConfiguration, ModelInfo } from "../../common/api";
 
-import { openRouterDefaultModelId } from "../../../src/shared/api";
+import { openRouterDefaultModelId } from "../../common/api";
 
 
 export function validateApiConfiguration(apiConfiguration?: ApiConfiguration): string | undefined {
@@ -82,7 +82,7 @@ export function validateModelId(
           return "You must provide a model ID.";
         }
         if (openRouterModels && !Object.keys(openRouterModels).includes(modelId)) {
-          // even if the model list endpoint failed, extensionstatecontext will always have the default model info
+          // even if the model list endpoint failed, ReclineStatecontext will always have the default model info
           return "The model ID you provided is not available. Please choose a different model.";
         }
         break;

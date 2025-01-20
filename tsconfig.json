@@ -14,7 +14,7 @@
     "paths": {
       "react": ["./node_modules/preact/compat/"],
       "react-dom": ["./node_modules/preact/compat/"],
-      "@shared/*": ["src/shared/*"],
+      "@common/*": ["src/common/*"],
       "@extension/*": ["src/extension/*"],
       "@webview-ui/*": ["src/webview-ui/*"]
     },

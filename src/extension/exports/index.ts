@@ -1,8 +1,7 @@
 import type * as vscode from "vscode";
 
-import type { ReclineProvider } from "../core/webview/ReclineProvider";
-
-import type { ReclineAPI } from "./recline";
+import type { ReclineAPI } from "../../recline";
+import type { ReclineProvider } from "../ReclineProvider";
 
 
 export function createReclineAPI(outputChannel: vscode.OutputChannel, sidebarProvider: ReclineProvider): ReclineAPI {

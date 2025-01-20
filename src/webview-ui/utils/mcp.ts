@@ -1,4 +1,4 @@
-import type { McpResource, McpResourceTemplate } from "../../../src/shared/mcp";
+import type { McpResource, McpResourceTemplate } from "../../common/mcp";
 
 
 /**

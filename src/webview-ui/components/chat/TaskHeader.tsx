@@ -1,15 +1,15 @@
-import type { ReclineMessage } from "@shared/ExtensionMessage";
+import type { ReclineMessage } from "@shared/ReclineEvent";
 
 import { useWindowSize } from "react-use";
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 
-import { mentionRegexGlobal } from "@shared/context-mentions";
+import { mentionRegexGlobal } from "@shared/constants/mentions";
 
 import { vscodeApiWrapper } from "@webview-ui/utils/vscode";
 import { formatLargeNumber } from "@webview-ui/utils/format";
 import Thumbnails from "@webview-ui/components/common/Thumbnails";
-import { useExtensionState } from "@webview-ui/context/ExtensionStateContext";
+import { useReclineState } from "@webview-ui/context/ReclineStateContext";
 
 
 interface TaskHeaderProps {
@@ -33,7 +33,7 @@ const TaskHeader: React.FC<TaskHeaderProps> = ({
   totalCost,
   onClose
 }) => {
-  const { apiConfiguration } = useExtensionState();
+  const { apiConfiguration } = useReclineState();
   const [isTaskExpanded, setIsTaskExpanded] = useState(true);
   const [isTextExpanded, setIsTextExpanded] = useState(false);
   const [showSeeMore, setShowSeeMore] = useState(false);

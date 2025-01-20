@@ -1,4 +1,4 @@
-import type { ReclineProvider } from "@extension/core/webview/ReclineProvider";
+import type { ReclineProvider } from "@extension/ReclineProvider";
 
 import * as path from "node:path";
 

@@ -1,4 +1,4 @@
-import { mentionRegex } from "../../../src/shared/context-mentions";
+import { mentionRegex } from "../../common/constants/mentions";
 
 
 export function insertMention(

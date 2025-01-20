@@ -4,11 +4,11 @@ import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import { vscodeApiWrapper } from "@webview-ui/utils/vscode";
 import ApiOptions from "@webview-ui/components/settings/ApiOptions";
 import { validateApiConfiguration } from "@webview-ui/utils/validate";
-import { useExtensionState } from "@webview-ui/context/ExtensionStateContext";
+import { useReclineState } from "@webview-ui/context/ReclineStateContext";
 
 
 function WelcomeView() {
-  const { apiConfiguration } = useExtensionState();
+  const { apiConfiguration } = useReclineState();
 
   const [apiErrorMessage, setApiErrorMessage] = useState<string | undefined>(undefined);
 

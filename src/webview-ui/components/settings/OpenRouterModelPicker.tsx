@@ -11,13 +11,13 @@ import { openRouterDefaultModelId } from "@shared/api";
 
 import { vscodeApiWrapper } from "@webview-ui/utils/vscode";
 import { highlight } from "@webview-ui/components/history/HistoryView";
-import { useExtensionState } from "@webview-ui/context/ExtensionStateContext";
+import { useReclineState } from "@webview-ui/context/ReclineStateContext";
 
 import { ModelInfoView, normalizeApiConfiguration } from "./ApiOptions";
 
 
 const OpenRouterModelPicker: React.FC = () => {
-  const { apiConfiguration, setApiConfiguration, openRouterModels } = useExtensionState();
+  const { apiConfiguration, setApiConfiguration, openRouterModels } = useReclineState();
   const [searchTerm, setSearchTerm] = useState(apiConfiguration?.openRouterModelId || openRouterDefaultModelId);
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);

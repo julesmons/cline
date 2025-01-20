@@ -6,7 +6,7 @@ import { visit } from "unist-util-visit";
 import rehypeHighlight from "rehype-highlight";
 import { memo, useEffect, useRef } from "react";
 
-import { useExtensionState } from "@webview-ui/context/ExtensionStateContext";
+import { useReclineState } from "@webview-ui/context/ReclineStateContext";
 
 import { CODE_BLOCK_BG_COLOR } from "./CodeBlock";
 
@@ -208,7 +208,7 @@ const StyledPre = styled.pre<{ theme: any }>`
 `;
 
 const MarkdownBlock = memo(({ markdown, isPartial }: MarkdownBlockProps): JSX.Element => {
-  const { theme } = useExtensionState();
+  const { theme } = useReclineState();
   const prevMarkdownRef = useRef(markdown);
   const [reactContent, setMarkdown] = useRemark({
     remarkPlugins: [

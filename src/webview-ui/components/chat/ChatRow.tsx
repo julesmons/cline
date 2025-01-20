@@ -3,14 +3,14 @@ import type {
   ReclineAskUseMcpServer,
   ReclineMessage,
   ReclineSayTool
-} from "@shared/ExtensionMessage";
+} from "@shared/ReclineEvent";
 
 import { useSize } from "react-use";
 import { isEqual } from "es-toolkit";
 import React, { memo, useEffect, useMemo, useRef } from "react";
 import { VSCodeBadge, VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
 
-import { COMMAND_OUTPUT_STRING, COMMAND_REQ_APP_STRING } from "@shared/combineCommandSequences";
+import { COMMAND_OUTPUT_STRING, COMMAND_REQ_APP_STRING } from "@shared/utils/combineCommandSequences";
 
 import { vscodeApiWrapper } from "@webview-ui/utils/vscode";
 import McpToolRow from "@webview-ui/components/mcp/McpToolRow";
@@ -18,7 +18,7 @@ import Thumbnails from "@webview-ui/components/common/Thumbnails";
 import { findMatchingResourceOrTemplate } from "@webview-ui/utils/mcp";
 import McpResourceRow from "@webview-ui/components/mcp/McpResourceRow";
 import MarkdownBlock from "@webview-ui/components/common/MarkdownBlock";
-import { useExtensionState } from "@webview-ui/context/ExtensionStateContext";
+import { useReclineState } from "@webview-ui/context/ReclineStateContext";
 import CodeBlock, { CODE_BLOCK_BG_COLOR } from "@webview-ui/components/common/CodeBlock";
 import CodeAccordian, { removeLeadingNonAlphanumeric } from "@webview-ui/components/common/CodeAccordian";
 
@@ -82,7 +82,7 @@ export function ChatRowContent({
   lastModifiedMessage,
   isLast
 }: ChatRowContentProps) {
-  const { mcpServers } = useExtensionState();
+  const { mcpServers } = useReclineState();
   const [cost, apiReqCancelReason, apiReqStreamingFailedMessage] = useMemo(() => {
     if (message.text != null && message.say === "api_req_started") {
       const info: ReclineApiReqInfo = JSON.parse(message.text);

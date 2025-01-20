@@ -3,7 +3,7 @@ import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 
 import { vscodeApiWrapper } from "@webview-ui/utils/vscode";
 import { formatLargeNumber } from "@webview-ui/utils/format";
-import { useExtensionState } from "@webview-ui/context/ExtensionStateContext";
+import { useReclineState } from "@webview-ui/context/ReclineStateContext";
 
 
 interface HistoryPreviewProps {
@@ -11,7 +11,7 @@ interface HistoryPreviewProps {
 }
 
 function HistoryPreview({ showHistoryView }: HistoryPreviewProps) {
-  const { taskHistory } = useExtensionState();
+  const { taskHistory } = useReclineState();
   const handleHistorySelect = (id: string) => {
     vscodeApiWrapper.postMessage({ type: "showTaskWithId", text: id });
   };

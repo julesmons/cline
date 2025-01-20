@@ -1,5 +1,7 @@
 import type { StdioServerParameters } from "@modelcontextprotocol/sdk/client/stdio.js";
 
+import type { ReclineProvider } from "@extension/ReclineProvider";
+
 import type {
   McpResource,
   McpResourceResponse,
@@ -7,9 +9,7 @@ import type {
   McpServer,
   McpTool,
   McpToolCallResponse
-} from "@shared/mcp";
-
-import type { ReclineProvider } from "@extension/core/webview/ReclineProvider";
+} from "./types";
 
 import * as path from "node:path";
 import * as fs from "node:fs/promises";

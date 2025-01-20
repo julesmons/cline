@@ -1,16 +1,15 @@
-import type { ReclineAPI } from "./exports/recline";
+import type { ReclineAPI } from "../recline";
+
+import { Buffer } from "node:buffer";
 
 import * as vscode from "vscode";
 
 import { createReclineAPI } from "./exports";
-import { ReclineProvider } from "./core/webview/ReclineProvider";
+import { ReclineProvider } from "./ReclineProvider";
 import { DIFF_VIEW_URI_SCHEME } from "./integrations/editor/DiffViewProvider";
 import { registerEnvironmentCacheEvents } from "./integrations/workspace/environment-cache";
 
 import "./utils/path";
-
-
-// Required to have access to String.prototype.toPosix
 
 
 let outputChannel: vscode.OutputChannel;
@@ -112,7 +111,7 @@ export function activate(context: vscode.ExtensionContext): ReclineAPI {
   );
 
   // URI Handler
-  const handleUri = async (uri: vscode.Uri) => {
+  const handleUri = async (uri: vscode.Uri): Promise<void> => {
     const path = uri.path;
     const query = new URLSearchParams(uri.query.replace(/\+/g, "%2B"));
     const visibleProvider = ReclineProvider.getVisibleInstance();

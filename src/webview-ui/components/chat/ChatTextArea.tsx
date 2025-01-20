@@ -1,8 +1,8 @@
 import React, { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import { mentionRegex, mentionRegexGlobal } from "@shared/context-mentions";
+import { mentionRegex, mentionRegexGlobal } from "@shared/constants/mentions";
 
-import { useExtensionState } from "@webview-ui/context/ExtensionStateContext";
+import { useReclineState } from "@webview-ui/context/ReclineStateContext";
 
 import Thumbnails from "../common/Thumbnails";
 import {
@@ -46,7 +46,7 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
     },
     ref
   ) => {
-    const { filePaths } = useExtensionState();
+    const { filePaths } = useReclineState();
     const [isTextAreaFocused, setIsTextAreaFocused] = useState(false);
     const [thumbnailsHeight, setThumbnailsHeight] = useState(0);
     const [textAreaBaseHeight, setTextAreaBaseHeight] = useState<number | undefined>(undefined);

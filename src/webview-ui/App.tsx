@@ -1,4 +1,4 @@
-import type { ExtensionMessage } from "../../src/shared/ExtensionMessage";
+import type { ReclineEvent } from "../common/ReclineEvent";
 
 import { useEvent } from "react-use";
 import { useCallback, useEffect, useState } from "react";
@@ -9,18 +9,18 @@ import { vscodeApiWrapper } from "./utils/vscode";
 import HistoryView from "./components/history/HistoryView";
 import WelcomeView from "./components/welcome/WelcomeView";
 import SettingsView from "./components/settings/SettingsView";
-import { ExtensionStateContextProvider, useExtensionState } from "./context/ExtensionStateContext";
+import { ReclineStateContextProvider, useReclineState } from "./context/ReclineStateContext";
 
 
 function AppContent() {
-  const { didHydrateState, showWelcome, shouldShowAnnouncement } = useExtensionState();
+  const { didHydrateState, showWelcome, shouldShowAnnouncement } = useReclineState();
   const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showMcp, setShowMcp] = useState(false);
   const [showAnnouncement, setShowAnnouncement] = useState(false);
 
   const handleMessage = useCallback((e: MessageEvent) => {
-    const message: ExtensionMessage = e.data;
+    const message: ReclineEvent = e.data;
     switch (message.type) {
       case "action":
         switch (message.action!) {
@@ -92,9 +92,9 @@ function AppContent() {
 
 function App() {
   return (
-    <ExtensionStateContextProvider>
+    <ReclineStateContextProvider>
       <AppContent />
-    </ExtensionStateContextProvider>
+    </ReclineStateContextProvider>
   );
 }
 

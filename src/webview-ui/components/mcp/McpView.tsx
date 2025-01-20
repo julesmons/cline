@@ -10,7 +10,7 @@ import {
 } from "@vscode/webview-ui-toolkit/react";
 
 import { vscodeApiWrapper } from "@webview-ui/utils/vscode";
-import { useExtensionState } from "@webview-ui/context/ExtensionStateContext";
+import { useReclineState } from "@webview-ui/context/ReclineStateContext";
 
 import McpToolRow from "./McpToolRow";
 import McpResourceRow from "./McpResourceRow";
@@ -21,7 +21,7 @@ interface McpViewProps {
 }
 
 function McpView({ onDone }: McpViewProps) {
-  const { mcpServers: servers } = useExtensionState();
+  const { mcpServers: servers } = useReclineState();
   // const [servers, setServers] = useState<McpServer[]>([
   // 	// Add some mock servers for testing
   // 	{
