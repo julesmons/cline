@@ -5,27 +5,36 @@ import type { McpServer } from "../../services/mcp/types";
 
 export interface ReclineSettings {
 
-  selectedModelProviderId?: string;
-  selectedModelId?: string;
+  selectedModelProviderId?: string; // The currently selected model provider.
+  selectedModelId?: string; // The currently selected model of the selected model provider.
 
-  modelProvider?: ModelProviderReclineSettings;
-  mcp?: MCPServerReclineSettings;
+  modelProvider: ModelProviderReclineSettings; // Model provider settings
+  mcp: MCPServerReclineSettings; // MCP server settings
+  browser: BrowserReclineSettings; // Browser settings
+}
+
+export interface BrowserReclineSettings {
+  // Browser viewport settings, required parameters for browser usage.
+  viewport: {
+    width: number; // Width of the browser viewport
+    height: number; // Height of the browser viewport
+  };
 }
 
 export type ModelProviderReclineSettings = Record<string, {
 
-  config: ModelProviderConfig & Record<string, unknown>;
-  autoApproval: AutoApprovalReclineSettings;
+  config: ModelProviderConfig & Record<string, unknown>; // Provider specific configuration (e.g. API url and/or key)
+  autoApproval: AutoApprovalReclineSettings; // Auto-approval settings for this provider
+  customInstructions: string; // Provider specific instructions
 }>;
 
 export interface MCPServerReclineSettings {
-  mcpServers: McpServer[];
+  mcpServers: McpServer[]; // List of registered MCP servers Recline can use
 }
 
 export interface AutoApprovalReclineSettings {
 
-  // Whether auto-approval is enabled
-  enabled: boolean;
+  enabled: boolean; // Whether auto-approval is enabled
 
   // Auto-approval settings per action
   actions: {
@@ -36,6 +45,5 @@ export interface AutoApprovalReclineSettings {
     useMcp: boolean; // Use MCP servers
   };
 
-  // Maximum number of auto-approved requests
-  maxRequests: number;
+  maxRequests: number; // Maximum number of auto-approved requests. If exceeded, user will be prompted for approval to reset the counter. This is to prevent accidental or malicious overuse of auto-approval.
 }

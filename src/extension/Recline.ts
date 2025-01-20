@@ -38,7 +38,7 @@ import { constructNewFileContent } from "@extension/core/assistant-message/diff"
 import { DiffViewProvider } from "@extension/integrations/editor/DiffViewProvider";
 import { TerminalManager } from "@extension/integrations/terminal/TerminalManager";
 import { fixModelHtmlEscaping, removeInvalidChars } from "@extension/utils/string";
-import { addUserInstructions, SYSTEM_PROMPT } from "@extension/core/prompts/system";
+import { SYSTEM_PROMPT, USER_SYSTEM_PROMPT } from "@extension/core/prompts/system";
 import { showOmissionWarning } from "@extension/integrations/editor/detect-omission";
 import { GlobalFileNames, reclineRulesPath, workspaceRoot } from "@extension/constants";
 import { parseSourceCodeForDefinitionsTopLevel } from "@extension/services/tree-sitter";
@@ -636,16 +636,15 @@ export class Recline {
 
     const model = await this.api.getCurrentModel();
 
-    let systemPrompt: string = await SYSTEM_PROMPT(workspaceRoot, model.supportsComputerUse, mcpHub);
+    // Generate system prompt
+    let systemPrompt: string = await SYSTEM_PROMPT(workspaceRoot, model, mcpHub, this.settings);
+
+    // Retrieve user-specific custom instructions
     const settingsCustomInstructions: string | undefined = this.customInstructions?.trim();
     const reclineRulesFileInstructions: string | undefined = await this.getReclineRulesInstructions();
 
-    if (
-      (settingsCustomInstructions != null && settingsCustomInstructions.length > 0)
-      || (reclineRulesFileInstructions != null && reclineRulesFileInstructions.length > 0)
-    ) {
-      systemPrompt += addUserInstructions(settingsCustomInstructions, reclineRulesFileInstructions);
-    }
+    // Add user-specific custom instructions to system prompt
+    systemPrompt += USER_SYSTEM_PROMPT(settingsCustomInstructions, reclineRulesFileInstructions);
 
     if (previousApiReqIndex >= 0) {
       const previousRequest = this.reclineMessages[previousApiReqIndex];
@@ -1108,7 +1107,7 @@ export class Recline {
               return `[${block.name} for '${block.params.regex}'${block.params.file_pattern != null ? ` in '${block.params.file_pattern}'` : ""}]`;
             case "list_files":
               return `[${block.name} for '${block.params.path}']`;
-            case "list_code_definition_names":
+            case "extract_code_signatures":
               return `[${block.name} for '${block.params.path}']`;
             case "browser_action":
               return `[${block.name} for '${block.params.action}']`;
@@ -1116,7 +1115,7 @@ export class Recline {
               return `[${block.name} for '${block.params.server_name}']`;
             case "access_mcp_resource":
               return `[${block.name} for '${block.params.server_name}']`;
-            case "ask_followup_question":
+            case "ask_question":
               return `[${block.name} for '${block.params.question}']`;
             case "attempt_completion":
               return `[${block.name}]`;
@@ -1627,7 +1626,7 @@ export class Recline {
               break;
             }
           }
-          case "list_code_definition_names": {
+          case "extract_code_signatures": {
             const relDirPath: string | undefined = block.params.path;
             const sharedMessageProps: ReclineSayTool = {
               tool: "listCodeDefinitionNames",
@@ -1653,7 +1652,7 @@ export class Recline {
                 if (relDirPath == null || relDirPath.length === 0) {
                   this.consecutiveMistakeCount++;
                   pushToolResult(
-                    await this.sayAndCreateMissingParamError("list_code_definition_names", "path")
+                    await this.sayAndCreateMissingParamError("extract_code_signatures", "path")
                   );
                   break;
                 }
@@ -2236,7 +2235,7 @@ export class Recline {
               break;
             }
           }
-          case "ask_followup_question": {
+          case "ask_question": {
             const question: string | undefined = block.params.question;
             try {
               if (block.partial) {
@@ -2249,7 +2248,7 @@ export class Recline {
                 if (question == null || question.length === 0) {
                   this.consecutiveMistakeCount++;
                   pushToolResult(
-                    await this.sayAndCreateMissingParamError("ask_followup_question", "question")
+                    await this.sayAndCreateMissingParamError("ask_question", "question")
                   );
                   break;
                 }
@@ -2868,12 +2867,12 @@ export class Recline {
   shouldAutoApproveTool(toolName: ToolUseName): boolean {
     if (this.autoApprovalSettings.enabled) {
       switch (toolName) {
-        case "ask_followup_question":
+        case "ask_question":
         case "attempt_completion":
           return false;
         case "read_file":
         case "list_files":
-        case "list_code_definition_names":
+        case "extract_code_signatures":
         case "search_files":
           return this.autoApprovalSettings.actions.readFiles;
         case "write_to_file":

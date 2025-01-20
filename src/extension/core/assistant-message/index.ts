@@ -15,11 +15,11 @@ export const toolUseNames = [
   "replace_in_file",
   "search_files",
   "list_files",
-  "list_code_definition_names",
+  "extract_code_signatures",
   "browser_action",
   "use_mcp_tool",
   "access_mcp_resource",
-  "ask_followup_question",
+  "ask_question",
   "attempt_completion"
 ] as const;
 
@@ -89,7 +89,7 @@ export interface ListFilesToolUse extends ToolUse {
 }
 
 export interface ListCodeDefinitionNamesToolUse extends ToolUse {
-  name: "list_code_definition_names";
+  name: "extract_code_signatures";
   params: Partial<Pick<Record<ToolParamName, string>, "path">>;
 }
 
@@ -109,7 +109,7 @@ export interface AccessMcpResourceToolUse extends ToolUse {
 }
 
 export interface AskFollowupQuestionToolUse extends ToolUse {
-  name: "ask_followup_question";
+  name: "ask_question";
   params: Partial<Pick<Record<ToolParamName, string>, "question">>;
 }
 
