@@ -1,6 +1,9 @@
 import type { ReclineMessage } from "./ExtensionMessage";
 
 
+export const COMMAND_OUTPUT_STRING = "Output:";
+export const COMMAND_REQ_APP_STRING = "REQ_APP";
+
 /**
  * Combines sequences of command and command_output messages in an array of ReclineMessages.
  *
@@ -71,5 +74,3 @@ export function combineCommandSequences(messages: ReclineMessage[]): ReclineMess
       return msg;
     });
 }
-export const COMMAND_OUTPUT_STRING = "Output:";
-export const COMMAND_REQ_APP_STRING = "REQ_APP";

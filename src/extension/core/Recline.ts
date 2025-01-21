@@ -1,5 +1,4 @@
 import type { Anthropic } from "@anthropic-ai/sdk";
-
 import type { HistoryItem } from "@shared/HistoryItem";
 import type { ReclineAskResponse } from "@shared/WebviewMessage";
 import type { AutoApprovalSettings } from "@shared/AutoApprovalSettings";
@@ -32,9 +31,8 @@ import delay from "delay";
 import * as vscode from "vscode";
 import pWaitFor from "p-wait-for";
 import { cloneDeep } from "es-toolkit";
-import { serializeError } from "serialize-error";
-
 import { findLastIndex } from "@shared/array";
+import { serializeError } from "serialize-error";
 import { getApiMetrics } from "@shared/getApiMetrics";
 import {
   browserActions
@@ -50,7 +48,6 @@ import { fileExistsAtPath } from "../utils/fs";
 import { calculateApiCost } from "../utils/cost";
 import { sanitizeUserInput } from "../utils/sanitize";
 import { regexSearchFiles } from "../services/ripgrep";
-import { OpenAIModelProvider } from "../api/providers/openai";
 import { arePathsEqual, getReadablePath } from "../utils/path";
 import { BrowserSession } from "../integrations/browser/BrowserSession";
 import { extractTextFromFile } from "../integrations/misc/extract-text";
@@ -63,12 +60,12 @@ import { showError, showInfo, showWarning } from "../integrations/notifications"
 import { getCachedEnvironmentInfo } from "../integrations/workspace/environment-cache";
 import { findToolName, formatContentBlockToMarkdown } from "../integrations/misc/export-markdown";
 
-import { parseMentions } from "./mentions";
+import { parseMentions } from "./mentions/utils";
 import { formatResponse } from "./prompts/responses";
 import { parseAssistantMessage } from "./assistant-message";
-import { truncateHalfConversation } from "./sliding-window";
+import { SlidingContextWindowManager } from "./sliding-window";
 import { constructNewFileContent } from "./assistant-message/diff";
-import { addUserInstructions, SYSTEM_PROMPT } from "./prompts/system";
+import { SYSTEM_PROMPT, USER_SYSTEM_PROMPT } from "./prompts/system";
 
 
 const cwd
@@ -99,6 +96,7 @@ export class Recline {
   private presentAssistantMessageHasPendingUpdates = false;
   private presentAssistantMessageLocked = false;
   private providerRef: WeakRef<ReclineProvider>;
+  private slidingWindowManager: SlidingContextWindowManager = new SlidingContextWindowManager();
   private terminalManager: TerminalManager;
   private userMessageContent: (Anthropic.TextBlockParam | Anthropic.ImageBlockParam)[] = [];
 
@@ -167,7 +165,7 @@ export class Recline {
     const filePath = path.join(await this.ensureTaskDirectoryExists(), GlobalFileNames.apiConversationHistory);
     const fileExists = await fileExistsAtPath(filePath);
     if (fileExists) {
-      return JSON.parse(await fs.readFile(filePath, "utf8"));
+      return JSON.parse(await fs.readFile(filePath, "utf8")) as MessageParamWithTokenCount[];
     }
     return [];
   }
@@ -175,13 +173,13 @@ export class Recline {
   private async getSavedReclineMessages(): Promise<ReclineMessage[]> {
     const filePath = path.join(await this.ensureTaskDirectoryExists(), GlobalFileNames.uiMessages);
     if (await fileExistsAtPath(filePath)) {
-      return JSON.parse(await fs.readFile(filePath, "utf8"));
+      return JSON.parse(await fs.readFile(filePath, "utf8")) as ReclineMessage[];
     }
     else {
       // check old location
       const oldPath = path.join(await this.ensureTaskDirectoryExists(), "claude_messages.json");
       if (await fileExistsAtPath(oldPath)) {
-        const data = JSON.parse(await fs.readFile(oldPath, "utf8"));
+        const data = JSON.parse(await fs.readFile(oldPath, "utf8")) as ReclineMessage[];
         await fs.unlink(oldPath); // remove old file
         return data;
       }
@@ -232,6 +230,7 @@ export class Recline {
   }
 
   private async resumeTaskFromHistory() {
+    this.slidingWindowManager.reset();
     const modifiedReclineMessages = await this.getSavedReclineMessages();
 
     // Remove any resume messages that may have been added before
@@ -509,6 +508,7 @@ export class Recline {
   private async startTask(task?: string, images?: string[]): Promise<void> {
     // conversationHistory (for API) and reclineMessages (for webview) need to be in sync
     // if the extension process were killed, then on restart the reclineMessages might not be empty, so we need to set it to [] when we create a new Recline client (otherwise webview would show stale messages from previous session)
+    this.slidingWindowManager.reset();
     this.reclineMessages = [];
     this.apiConversationHistory = [];
     await this.providerRef.deref()?.postStateToWebview();
@@ -649,26 +649,27 @@ export class Recline {
     }
 
     const model = await this.api.getModel();
-    let systemPrompt: string = await SYSTEM_PROMPT(cwd, model.info.supportsComputerUse ?? false, mcpHub);
+    let systemPrompt: string = await SYSTEM_PROMPT(cwd, model, mcpHub);
     const settingsCustomInstructions: string | undefined = this.customInstructions?.trim();
     const reclineRulesFileInstructions: string | undefined = await this.getReclineRulesInstructions(
       path.resolve(cwd, GlobalFileNames.reclineRules)
     );
 
-    if (settingsCustomInstructions || reclineRulesFileInstructions) {
-      systemPrompt += addUserInstructions(settingsCustomInstructions, reclineRulesFileInstructions);
-    }
+    systemPrompt += USER_SYSTEM_PROMPT(settingsCustomInstructions, reclineRulesFileInstructions);
 
     if (previousApiReqIndex >= 0) {
       const previousRequest = this.reclineMessages[previousApiReqIndex];
       if (previousRequest && previousRequest.text) {
-        const { tokensIn, tokensOut, cacheWrites, cacheReads }: ReclineApiReqInfo = JSON.parse(previousRequest.text);
+        const { tokensIn, tokensOut, cacheWrites, cacheReads }: ReclineApiReqInfo = JSON.parse(previousRequest.text) as ReclineApiReqInfo;
         const totalTokens = (tokensIn || 0) + (tokensOut || 0) + (cacheWrites || 0) + (cacheReads || 0);
         const contextWindow: number = model.info.contextWindow || 128_000;
         const maxAllowedSize = contextWindow - (contextWindow * 0.25);
 
         if (totalTokens >= maxAllowedSize) {
-          const truncatedMessages = truncateHalfConversation(this.apiConversationHistory);
+          const truncatedMessages = this.slidingWindowManager.applyTruncation(
+            model,
+            this.apiConversationHistory
+          );
           await this.overwriteApiConversationHistory(truncatedMessages);
         }
       }
@@ -1112,7 +1113,7 @@ export class Recline {
               }]`;
             case "list_files":
               return `[${block.name} for '${block.params.path}']`;
-            case "list_code_definition_names":
+            case "extract_code_signatures":
               return `[${block.name} for '${block.params.path}']`;
             case "browser_action":
               return `[${block.name} for '${block.params.action}']`;
@@ -1627,7 +1628,7 @@ export class Recline {
               break;
             }
           }
-          case "list_code_definition_names": {
+          case "extract_code_signatures": {
             const relDirPath: string | undefined = block.params.path;
             const sharedMessageProps: ReclineSayTool = {
               tool: "listCodeDefinitionNames",
@@ -1653,7 +1654,7 @@ export class Recline {
                 if (!relDirPath) {
                   this.consecutiveMistakeCount++;
                   pushToolResult(
-                    await this.sayAndCreateMissingParamError("list_code_definition_names", "path")
+                    await this.sayAndCreateMissingParamError("extract_code_signatures", "path")
                   );
                   break;
                 }
@@ -2546,6 +2547,7 @@ export class Recline {
       let inputTokens = 0;
       let outputTokens = 0;
       let totalCost: number | undefined;
+      let assistantMessage = "";
 
       // update api_req_started. we can't use api_req_finished anymore since it's a unique case where it could come after a streaming message (ie in the middle of being updated or executed)
       // fortunately api_req_finished was always parsed out for the gui anyways, so it remains solely for legacy purposes to keep track of prices in tasks from history
@@ -2599,7 +2601,8 @@ export class Recline {
                   : "Response interrupted by user"
                 }]`
             }
-          ]
+          ],
+          tokenCount: outputTokens
         });
 
         // update api_req_started to have cancelled and cost, so that we can display the cost of the partial stream
@@ -2623,7 +2626,6 @@ export class Recline {
       await this.diffViewProvider.reset();
 
       const stream = this.attemptApiRequest(previousApiReqIndex); // yields only if the first chunk is successful, otherwise will allow the user to retry the request (most likely due to rate limit error, which gets thrown on the first chunk)
-      let assistantMessage = "";
       try {
         for await (const chunk of stream) {
           switch (chunk.type) {
@@ -2751,7 +2753,8 @@ export class Recline {
         );
         await this.addToApiConversationHistory({
           role: "assistant",
-          content: [{ type: "text", text: "Failure: I did not provide a response." }]
+          content: [{ type: "text", text: "Failure: I did not provide a response." }],
+          tokenCount: outputTokens
         });
       }
 
@@ -2857,7 +2860,7 @@ export class Recline {
       switch (toolName) {
         case "read_file":
         case "list_files":
-        case "list_code_definition_names":
+        case "extract_code_signatures":
         case "search_files":
           return this.autoApprovalSettings.actions.readFiles;
         case "write_to_file":

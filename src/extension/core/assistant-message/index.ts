@@ -15,7 +15,7 @@ export const toolUseNames = [
   "replace_in_file",
   "search_files",
   "list_files",
-  "list_code_definition_names",
+  "extract_code_signatures",
   "browser_action",
   "use_mcp_tool",
   "access_mcp_resource",
@@ -89,7 +89,7 @@ export interface ListFilesToolUse extends ToolUse {
 }
 
 export interface ListCodeDefinitionNamesToolUse extends ToolUse {
-  name: "list_code_definition_names";
+  name: "extract_code_signatures";
   params: Partial<Pick<Record<ToolParamName, string>, "path">>;
 }
 

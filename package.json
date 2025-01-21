@@ -2,7 +2,7 @@
   "publisher": "julesmons",
   "name": "recline",
   "displayName": "Recline",
-  "version": "0.2.5",
+  "version": "0.4.2",
   "packageManager": "pnpm@9.15.2",
   "description": "Recline: The autonomous AI assistant that seamlessly integrates with your CLI and editor to create, edit, and run; redefining how you code.",
   "author": {
@@ -207,8 +207,8 @@
     "undici": "^7.2.0",
     "unified": "^11.0.5",
     "unist-util-visit": "^5.0.0",
-    "validator": "^13.12.0",
     "utf-8-validate": "^6.0.5",
+    "validator": "^13.12.0",
     "web-tree-sitter": "^0.24.6",
     "web-vitals": "^4.2.4",
     "zod": "^3.24.1"

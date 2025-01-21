@@ -117,7 +117,7 @@ export async function regexSearchFiles(
   filePattern?: string
 ): Promise<string> {
 
-  const args = ["--json", "-e", regex, "--glob", filePattern ?? "*", "--context", "1", directoryPath];
+  const args = ["--json", "-e", regex, "--glob", filePattern ?? "**/*", "--context", "1", directoryPath];
 
   let output: string;
   try {

@@ -1,30 +1,28 @@
-import type { Mention } from "./types";
+import { statSync } from "node:fs";
+import { resolve } from "node:path";
 
-import { InvalidMentionError, MentionType } from "./types";
+import { mentionRegexGlobal } from "@shared/context-mentions";
 
+import { workspaceRoot } from "@extension/constants";
 
-/**
- * Regex for matching mentions while avoiding TypeScript path aliases:
- * - Negative lookbehind (?<!from\s|import\s) prevents matching after import statements
- * - Negative lookbehind (?<!["']\s*) prevents matching inside string literals in imports
- * - Matches file paths, URLs, or the special 'problems' keyword
- * - Allows for more flexible path formats while still avoiding false positives
- */
-const MENTION_REGEX = /(?<!from\s|import\s|["']\s*|@)@(\/[^\s.,;:!?]+|https?:\/\/\S+?|problems)(?=[.,;:!?]?(?:\s|$)|$)/g;
+import { InvalidMentionError, type Mention, MentionType } from "./types";
+
 
 /**
  * Handles parsing and validation of mentions in text
  */
 export class MentionParser {
+
   /**
    * Creates a structured Mention object from a raw mention string
    */
   private static createMention(value: string, raw: string): Mention {
-    if (!value) {
+
+    if (value == null || value.length === 0) {
       throw new InvalidMentionError("Empty mention value");
     }
 
-    // URL mention
+    // Handle URL mention
     if (value.startsWith("http")) {
       return {
         type: MentionType.Url,
@@ -33,17 +31,18 @@ export class MentionParser {
       };
     }
 
-    // File system mention
+    // Handle file system mention
     if (value.startsWith("/")) {
       const mentionPath = value.slice(1);
+      const mentionStat = statSync(resolve(workspaceRoot, mentionPath)); // @TODO: Replace with vscode fs??
       return {
-        type: mentionPath.endsWith("/") ? MentionType.Folder : MentionType.File,
+        type: mentionStat.isDirectory() ? MentionType.Folder : MentionType.File,
         value: mentionPath,
         raw
       };
     }
 
-    // Problems mention
+    // Handle problems mention
     if (value === "problems") {
       return {
         type: MentionType.Problems,
@@ -59,21 +58,27 @@ export class MentionParser {
    * Parses all mentions from the given text
    */
   public static parseMentions(text: string): Mention[] {
+
     const mentions: Mention[] = [];
-    const matches = text.matchAll(MENTION_REGEX);
+    const matches = text.matchAll(mentionRegexGlobal);
 
     for (const match of matches) {
+
       try {
+
         const mention = MentionParser.createMention(match[1], match[0]);
         mentions.push(mention);
       }
       catch (error) {
+
+        // Skip invalid mentions
         if (error instanceof InvalidMentionError) {
           console.warn(`Skipping invalid mention: ${error.message}`);
+          continue;
         }
-        else {
-          throw error;
-        }
+
+        // Re-throw other errors
+        throw error;
       }
     }
 
@@ -84,19 +89,27 @@ export class MentionParser {
    * Replaces mentions in text with a more readable format
    */
   public static replaceMentionsWithLabels(text: string): string {
-    return text.replace(MENTION_REGEX, (match, mention) => {
+
+    return text.replace(mentionRegexGlobal, (match: string, mention: string): string => {
+
+      // Handle URL mentions
       if (mention.startsWith("http")) {
         return `'${mention}' (see below for site content)`;
       }
-      else if (mention.startsWith("/")) {
+
+      // Handle file system mentions
+      if (mention.startsWith("/")) {
         const mentionPath = mention.slice(1);
         return mentionPath.endsWith("/")
           ? `'${mentionPath}' (see below for folder content)`
           : `'${mentionPath}' (see below for file content)`;
       }
-      else if (mention === "problems") {
+
+      // Handle problems mention
+      if (mention === "problems") {
         return `Workspace Problems (see below for diagnostics)`;
       }
+
       return match;
     });
   }

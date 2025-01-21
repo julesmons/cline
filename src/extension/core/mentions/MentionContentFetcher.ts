@@ -1,14 +1,15 @@
 import type { Mention, MentionContent } from "./types";
 
-import fs from "node:fs/promises";
 import * as path from "node:path";
 
 import * as vscode from "vscode";
 import { isBinaryFile } from "isbinaryfile";
 
 import { diagnosticsMonitor } from "@extension/integrations/diagnostics";
-import { urlToMarkdown } from "@extension/services/browser/urlToMarkdown";
 import { extractTextFromFile } from "@extension/integrations/misc/extract-text";
+
+import { NetworkService } from "@extension/services/network";
+import { MarkdownService } from "@extension/services/markdown";
 
 import { FileAccessError, MentionType, UrlFetchError } from "./types";
 
@@ -31,7 +32,8 @@ export class MentionContentFetcher {
 
       case MentionType.Url:
         try {
-          const markdown = await urlToMarkdown(mention.value);
+          const html = await NetworkService.fetch(mention.value);
+          const markdown = await MarkdownService.fromHTML(html);
           return { mention, content: markdown };
         }
         catch (error) {
@@ -48,7 +50,7 @@ export class MentionContentFetcher {
       default:
         return {
           mention,
-          content: `Unsupported mention type: ${mention.type}`
+          content: `Unsupported mention type: ${mention.type as string}`
         };
     }
   }

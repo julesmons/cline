@@ -1,5 +1,4 @@
 import type { Anthropic } from "@anthropic-ai/sdk";
-
 import type { HistoryItem } from "@shared/HistoryItem";
 import type { ApiProvider, ModelInfo } from "@shared/api";
 import type { WebviewMessage } from "@shared/WebviewMessage";
@@ -13,15 +12,15 @@ import * as path from "node:path";
 import axios from "axios";
 import * as vscode from "vscode";
 import pWaitFor from "p-wait-for";
-
 import { findLast } from "@shared/array";
 import { DEFAULT_AUTO_APPROVAL_SETTINGS } from "@shared/AutoApprovalSettings";
 
 import { Recline } from "@extension/core/Recline";
+
 import { GlobalFileNames } from "@extension/constants";
 
-import { openMention } from "../mentions";
 import { buildApiHandler } from "../../api";
+import { openMention } from "../mentions/utils";
 import { fileExistsAtPath } from "../../utils/fs";
 import { McpHub } from "../../services/mcp/McpHub";
 import { getTheme } from "../../integrations/theme/getTheme";

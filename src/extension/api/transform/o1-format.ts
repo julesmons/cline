@@ -49,10 +49,10 @@ Description: Execute a CLI command on the system. Use this when you need to perf
 </list_files>
 Description: List files and directories within the specified directory. If recursive is true, it will list all files and directories recursively. If recursive is false or not provided, it will only list the top-level contents.
 
-3. list_code_definition_names:
-<list_code_definition_names>
+3. extract_code_signatures:
+<extract_code_signatures>
 <path>Directory path here</path>
-</list_code_definition_names>
+</extract_code_signatures>
 Description: Lists definition names (classes, functions, methods, etc.) used in source code files at the top level of the specified directory. This tool provides insights into the codebase structure and important constructs, encapsulating high-level concepts and relationships that are crucial for understanding the overall architecture.
 
 4. search_files:
@@ -241,7 +241,7 @@ interface ToolCall {
 const toolNames = [
   "execute_command",
   "list_files",
-  "list_code_definition_names",
+  "extract_code_signatures",
   "search_files",
   "read_file",
   "write_to_file",
@@ -331,7 +331,7 @@ function validateToolInput(toolName: string, tool_input: Record<string, string>)
     case "execute_command":
       return "command" in tool_input;
     case "read_file":
-    case "list_code_definition_names":
+    case "extract_code_signatures":
     case "list_files":
       return "path" in tool_input;
     case "search_files":

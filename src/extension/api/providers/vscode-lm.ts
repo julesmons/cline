@@ -10,7 +10,6 @@ import type { ApiStream } from "@extension/api/transform/stream";
 import { createHash } from "node:crypto";
 
 import * as vscode from "vscode";
-
 import { stringifyVsCodeLmModelSelector } from "@shared/vsCodeSelectorUtils";
 
 import { calculateApiCost } from "@extension/utils/cost";
