@@ -16,8 +16,6 @@ import { calculateApiCost } from "@extension/utils/cost";
 import { convertToVsCodeLmMessages } from "@extension/api/transform/vscode-lm-format";
 
 
-const ERROR_PREFIX = "Recline <Language Model API>";
-
 export class VSCodeLmModelProvider implements ModelProvider {
 
   private client: vscode.LanguageModelChat | null;
@@ -112,7 +110,7 @@ export class VSCodeLmModelProvider implements ModelProvider {
 
   private async getClient(): Promise<vscode.LanguageModelChat> {
     if (!this.options.vsCodeLmModelSelector) {
-      throw new Error(`${ERROR_PREFIX} The 'vsCodeLmModelSelector' option is required for the 'vscode-lm' provider.`);
+      throw new Error("Recline <Language Model API> The 'vsCodeLmModelSelector' option is required for the 'vscode-lm' provider.");
     }
 
     if (!this.client) {
@@ -134,6 +132,54 @@ export class VSCodeLmModelProvider implements ModelProvider {
         contentBuilder.push(chunk.value);
         yield { type: "text", text: chunk.value };
       }
+      else if (chunk instanceof vscode.LanguageModelToolCallPart) {
+        try {
+          // Validate tool call parameters
+          if (!chunk.name || typeof chunk.name !== "string") {
+            console.warn("Recline <Language Model API>: Invalid tool name received:", chunk.name);
+            continue;
+          }
+
+          if (!chunk.callId || typeof chunk.callId !== "string") {
+            console.warn("Recline <Language Model API>: Invalid tool callId received:", chunk.callId);
+            continue;
+          }
+
+          // Ensure input is a valid object
+          if (chunk.input == null || typeof chunk.input !== "object") {
+            console.warn("Recline <Language Model API>: Invalid tool input received:", chunk.input);
+            continue;
+          }
+
+          // Convert tool calls to text format with proper error handling
+          const toolCall = {
+            type: "tool_call",
+            name: chunk.name,
+            arguments: chunk.input,
+            callId: chunk.callId
+          };
+
+          const toolCallText = JSON.stringify(toolCall);
+          contentBuilder.push(toolCallText);
+
+          // Log tool call for debugging
+          console.debug("Recline <Language Model API>: Processing tool call:", {
+            name: chunk.name,
+            callId: chunk.callId,
+            inputSize: JSON.stringify(chunk.input).length
+          });
+
+          yield {
+            type: "text",
+            text: toolCallText
+          };
+        }
+        catch (error) {
+          console.error("Recline <Language Model API>: Failed to process tool call:", error);
+          // Continue processing other chunks even if one fails
+          continue;
+        }
+      }
     }
   }
 
@@ -150,7 +196,7 @@ export class VSCodeLmModelProvider implements ModelProvider {
   private async selectBestModel(selector: vscode.LanguageModelChatSelector): Promise<vscode.LanguageModelChat> {
     const models = await vscode.lm.selectChatModels(selector);
     if (models.length === 0) {
-      throw new Error(`${ERROR_PREFIX} No models found matching the specified selector.`);
+      throw new Error("Recline <Language Model API>: No models found matching the specified selector.");
     }
 
     return models.reduce((best, current) => current.maxInputTokens > best.maxInputTokens ? current : best, models[0]);
@@ -174,33 +220,67 @@ export class VSCodeLmModelProvider implements ModelProvider {
     ];
 
     const contentBuilder: string[] = [];
-    const response = await client.sendRequest(
-      vsCodeLmMessages,
-      { justification: `${client.name} from ${client.vendor} will be used by Recline. Click 'Allow' to proceed.` },
-      this.currentRequestCancellation.token
-    );
 
-    const streamGenerator = this.processStreamChunks(response, contentBuilder);
-    yield * streamGenerator;
+    try {
+      const response = await client.sendRequest(
+        vsCodeLmMessages,
+        { justification: `${client.name} from ${client.vendor} will be used by Recline. Click 'Allow' to proceed.` },
+        this.currentRequestCancellation.token
+      );
 
-    if (!this.currentRequestCancellation?.token.isCancellationRequested) {
+      const streamGenerator = this.processStreamChunks(response, contentBuilder);
+      yield * streamGenerator;
 
-      // Ensure all token counting is completed before calculating the cost and yielding usage.
-      const [inputTokens, outputTokens] = await Promise.all([
-        totalInputTokensPromise,
-        this.countTokens(contentBuilder.join(""))
-      ]);
+      if (!this.currentRequestCancellation?.token.isCancellationRequested) {
 
-      yield {
-        type: "usage",
-        inputTokens,
-        outputTokens,
-        totalCost: calculateApiCost(
-          model.info,
+        // Ensure all token counting is completed before calculating the cost and yielding usage.
+        const [inputTokens, outputTokens] = await Promise.all([
+          totalInputTokensPromise,
+          this.countTokens(contentBuilder.join(""))
+        ]);
+
+        yield {
+          type: "usage",
           inputTokens,
-          outputTokens
-        )
-      };
+          outputTokens,
+          totalCost: calculateApiCost(
+            model.info,
+            inputTokens,
+            outputTokens
+          )
+        };
+      }
+    }
+    catch (error: unknown) {
+      if (error instanceof vscode.CancellationError) {
+        throw new TypeError("Recline <Language Model API>: Request cancelled by user");
+      }
+
+      if (error instanceof Error) {
+        console.error("Recline <Language Model API>: Stream error details:", {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        });
+
+        // Return original error if it's already an Error instance
+        throw error;
+      }
+      else if (typeof error === "object" && error !== null) {
+        // Handle error-like objects
+        const errorDetails = JSON.stringify(error, null, 2);
+        console.error("Recline <Language Model API>: Stream error object:", errorDetails);
+        throw new Error(`Recline <Language Model API>: Response stream error: ${errorDetails}`);
+      }
+      else {
+        // Fallback for unknown error types
+        const errorMessage = String(error);
+        console.error("Recline <Language Model API>: Unknown stream error:", errorMessage);
+        throw new Error(`Recline <Language Model API>: Response stream error: ${errorMessage}`);
+      }
+    }
+    finally {
+      this.releaseCurrentCancellation();
     }
   }
 
