@@ -1,4 +1,5 @@
 import type { Anthropic } from "@anthropic-ai/sdk";
+import type { MessageParamWithTokenCount } from "@shared/api";
 
 import * as vscode from "vscode";
 
@@ -32,7 +33,7 @@ function asObjectSafe(value: any): object {
 }
 
 export function convertToVsCodeLmMessages(
-  anthropicMessages: Anthropic.Messages.MessageParam[]
+  anthropicMessages: MessageParamWithTokenCount[]
 ): vscode.LanguageModelChatMessage[] {
   const vsCodeLmMessages: vscode.LanguageModelChatMessage[] = [];
 

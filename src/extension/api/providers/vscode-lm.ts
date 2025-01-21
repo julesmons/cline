@@ -15,6 +15,8 @@ import { stringifyVsCodeLmModelSelector } from "@shared/vsCodeSelectorUtils";
 import { calculateApiCost } from "@extension/utils/cost";
 import { convertToVsCodeLmMessages } from "@extension/api/transform/vscode-lm-format";
 
+import { roughlyEstimateTokenCount } from "../utils";
+
 
 export class VSCodeLmModelProvider implements ModelProvider {
 
@@ -82,6 +84,8 @@ export class VSCodeLmModelProvider implements ModelProvider {
         continue;
       }
 
+      console.warn("Recline <Language Model API>: Token count not found in the message or the temporary cache during input tokenization.");
+
       // 3. If the tokenCount is not stored in the message and the temporary cache, calculate it. (This is the most expensive case.)
       const tokenCount: number = await this.countTokens(messageContent);
       this.temporaryTokenCache.set(messageCacheKey, tokenCount);
@@ -93,7 +97,8 @@ export class VSCodeLmModelProvider implements ModelProvider {
 
   private async countTokens(text: string): Promise<number> {
     if ((!this.client || !this.currentRequestCancellation?.token) || this.currentRequestCancellation.token.isCancellationRequested) {
-      return 0;
+      console.warn("Recline <Language Model API>: Token counting is not possible without an active client or cancellation token. Using rough estimation instead.");
+      return roughlyEstimateTokenCount(text);
     }
 
     try {
@@ -103,14 +108,15 @@ export class VSCodeLmModelProvider implements ModelProvider {
       if (error instanceof vscode.CancellationError) {
         throw error;
       }
-      console.warn("Token counting failed:", error);
-      return 0;
+
+      console.warn("Recline <Language Model API>: Token counting failed:", error);
+      return roughlyEstimateTokenCount(text);
     }
   }
 
   private async getClient(): Promise<vscode.LanguageModelChat> {
     if (!this.options.vsCodeLmModelSelector) {
-      throw new Error("Recline <Language Model API> The 'vsCodeLmModelSelector' option is required for the 'vscode-lm' provider.");
+      throw new Error("Recline <Language Model API>: The 'vsCodeLmModelSelector' option is required for the 'vscode-lm' provider.");
     }
 
     if (!this.client) {
@@ -204,6 +210,8 @@ export class VSCodeLmModelProvider implements ModelProvider {
 
   async *createMessage(systemPrompt: string, messages: MessageParamWithTokenCount[]): ApiStream {
 
+    console.log("Recline <Language Model API>: Creating api stream");
+
     // Ensure the previous request is cancelled before starting a new one.
     this.releaseCurrentCancellation();
 
@@ -222,16 +230,19 @@ export class VSCodeLmModelProvider implements ModelProvider {
     const contentBuilder: string[] = [];
 
     try {
+      console.log("Recline <Language Model API>: Sending request to vscode-lm");
       const response = await client.sendRequest(
         vsCodeLmMessages,
         { justification: `${client.name} from ${client.vendor} will be used by Recline. Click 'Allow' to proceed.` },
         this.currentRequestCancellation.token
       );
 
+      console.log("Recline <Language Model API>: Processing received response stream");
       const streamGenerator = this.processStreamChunks(response, contentBuilder);
       yield * streamGenerator;
 
       if (!this.currentRequestCancellation?.token.isCancellationRequested) {
+        console.log("Recline <Language Model API>: Calculating usage and cost");
 
         // Ensure all token counting is completed before calculating the cost and yielding usage.
         const [inputTokens, outputTokens] = await Promise.all([
@@ -282,6 +293,8 @@ export class VSCodeLmModelProvider implements ModelProvider {
     finally {
       this.releaseCurrentCancellation();
     }
+
+    console.log("Recline <Language Model API>: API streaming finished.");
   }
 
   async dispose(): Promise<void> {
