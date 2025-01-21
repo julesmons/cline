@@ -1,9 +1,9 @@
 import type { Anthropic } from "@anthropic-ai/sdk";
 import type { HistoryItem } from "@shared/HistoryItem";
-import type { ApiProvider, ModelInfo } from "@shared/api";
 import type { WebviewMessage } from "@shared/WebviewMessage";
 import type { ExtensionMessage } from "@shared/ExtensionMessage";
 import type { AutoApprovalSettings } from "@shared/AutoApprovalSettings";
+import type { ApiProvider, MessageParamWithTokenCount, ModelInfo } from "@shared/api";
 
 import os from "node:os";
 import fs from "node:fs/promises";
@@ -657,7 +657,7 @@ export class ReclineProvider implements vscode.WebviewViewProvider {
     taskDirPath: string;
     apiConversationHistoryFilePath: string;
     uiMessagesFilePath: string;
-    apiConversationHistory: Anthropic.MessageParam[];
+    apiConversationHistory: MessageParamWithTokenCount[];
   }> {
     const history = ((await this.getGlobalState("taskHistory")) as HistoryItem[] | undefined) || [];
     const historyItem = history.find(item => item.id === id);
@@ -667,7 +667,7 @@ export class ReclineProvider implements vscode.WebviewViewProvider {
       const uiMessagesFilePath = path.join(taskDirPath, GlobalFileNames.uiMessages);
       const fileExists = await fileExistsAtPath(apiConversationHistoryFilePath);
       if (fileExists) {
-        const apiConversationHistory = JSON.parse(await fs.readFile(apiConversationHistoryFilePath, "utf8"));
+        const apiConversationHistory = JSON.parse(await fs.readFile(apiConversationHistoryFilePath, "utf8")) as MessageParamWithTokenCount[];
         return {
           historyItem,
           taskDirPath,

@@ -1,4 +1,5 @@
 import type { Anthropic } from "@anthropic-ai/sdk";
+import type { MessageParamWithTokenCount } from "@shared/api";
 
 import os from "node:os";
 import * as path from "node:path";
@@ -6,7 +7,7 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 
 
-export async function downloadTask(dateTs: number, conversationHistory: Anthropic.MessageParam[]) {
+export async function downloadTask(dateTs: number, conversationHistory: MessageParamWithTokenCount[]) {
   // File name
   const date = new Date(dateTs);
   const month = date.toLocaleString("en-US", { month: "short" }).toLowerCase();
@@ -88,7 +89,7 @@ export function formatContentBlockToMarkdown(
   }
 }
 
-export function findToolName(toolCallId: string, messages: Anthropic.MessageParam[]): string {
+export function findToolName(toolCallId: string, messages: MessageParamWithTokenCount[]): string {
   for (const message of messages) {
     if (Array.isArray(message.content)) {
       for (const block of message.content) {
