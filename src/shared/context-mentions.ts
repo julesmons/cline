@@ -1,3 +1,4 @@
+/* eslint-disable regexp/no-useless-assertions */
 /*
 Mention regex:
 - **Purpose**:
