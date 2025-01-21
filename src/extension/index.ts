@@ -1,22 +1,23 @@
-import type { ReclineAPI } from "../recline";
+import type { ReclineSDK } from "./lib/sdk/types/sdk";
 
 import { Buffer } from "node:buffer";
 
 import * as vscode from "vscode";
 
-import { createReclineAPI } from "./exports";
+import { ReclineSDKFactory } from "./lib/sdk";
 import { ReclineProvider } from "./ReclineProvider";
-import { DIFF_VIEW_URI_SCHEME } from "./integrations/editor/DiffViewProvider";
+import { DIFF_VIEW_URI_SCHEME } from "./integrations/editor/diffView.provider";
 import { registerEnvironmentCacheEvents } from "./integrations/workspace/environment-cache";
 
-import "./utils/path";
+import "@common/polyfill/toPosix.polyfill";
 
 
 let outputChannel: vscode.OutputChannel;
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext): ReclineAPI {
+export function activate(context: vscode.ExtensionContext): ReclineSDK {
+
   outputChannel = vscode.window.createOutputChannel("Recline");
   context.subscriptions.push(outputChannel);
 
@@ -132,7 +133,7 @@ export function activate(context: vscode.ExtensionContext): ReclineAPI {
   };
   context.subscriptions.push(vscode.window.registerUriHandler({ handleUri }));
 
-  return createReclineAPI(outputChannel, sidebarProvider);
+  return ReclineSDKFactory.constructReclineSDK(outputChannel, sidebarProvider);
 }
 
 // This method is called when your extension is deactivated

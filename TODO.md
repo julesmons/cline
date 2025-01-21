@@ -177,3 +177,8 @@ By storing these concepts within the repository, collaborators have more context
     - Validate message integrity post-compression to prevent data loss.
     - Include diagnostics to identify formatting issues introduced during transmission.
     - Offer recovery options for improperly compressed messages.
+
+
+// Quick scratchpad:
+  - Convert tools like write and replace in file to StatefulTool that use vscode events sub instead of delay() and pWaitFor() -> Nicely self-contained editing -> Multiple file edits at once!
+  - Extend the omission detection to automatically re-prompt the model? Possibly triggering a context window manager altering so the context window is less full? Should be opt-in.

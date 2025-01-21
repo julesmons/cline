@@ -19,18 +19,18 @@ import { type ApiProvider, type ModelInfo, type ModelProviderMessage, openAiMode
 
 import { Recline } from "@extension/Recline";
 import { GlobalFileNames } from "@extension/constants";
-import { fileExistsAtPath } from "@extension/utils/fs";
-import { McpHub } from "@extension/services/mcp/McpHub";
-import { modelProviderRegistrar } from "@extension/models";
+import { fileExistsAtPath } from "@common/utils/filesystem/fs";
+import { McpHub } from "@extension/integrations/mcp/McpHub";
+import { modelProviderRegistrar } from "@extension/core/models";
 import { getTheme } from "@extension/integrations/theme/getTheme";
 import { selectImages } from "@extension/integrations/misc/process-images";
 import { downloadTask } from "@extension/integrations/misc/export-markdown";
 import { openFile, openImage } from "@extension/integrations/misc/open-file";
 import WorkspaceTracker from "@extension/integrations/workspace/WorkspaceTracker";
 
-import { openMention } from "./core/mentions";
-import { getUri } from "./webview/utils/getUri";
-import { getNonce } from "./webview/utils/getNonce";
+import { openMention } from "./lib/feature/mentions/utils";
+import { getUri } from "./integrations/webview/utils/getUri";
+import { getNonce } from "./integrations/webview/utils/getNonce";
 
 
 /*

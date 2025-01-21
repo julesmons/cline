@@ -4,7 +4,7 @@ import type { TerminalProcessResultPromise } from "./TerminalProcess";
 import * as vscode from "vscode";
 import pWaitFor from "p-wait-for";
 
-import { arePathsEqual } from "@extension/utils/path";
+import { arePathsEqual } from "@common/utils/filesystem/path";
 
 import { TerminalRegistry } from "./TerminalRegistry";
 import { mergePromise, TerminalProcess } from "./TerminalProcess";
@@ -36,7 +36,7 @@ export class TerminalManager {
     }
   }
 
-  disposeAll(): void {
+  async disposeAll(): Promise<void> {
 
     this.terminalIds.clear();
     this.processes.clear();

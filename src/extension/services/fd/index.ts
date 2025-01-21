@@ -6,7 +6,7 @@ import * as readline from "node:readline";
 import * as childProcess from "node:child_process";
 
 import { workspaceRoot } from "@extension/constants";
-import { arePathsEqual } from "@extension/utils/path";
+import { arePathsEqual } from "@common/utils/filesystem/path";
 
 
 // TODO: Bundler does not pick this up correctly yet.

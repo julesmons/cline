@@ -3,7 +3,7 @@ import * as path from "node:path";
 
 import * as vscode from "vscode";
 
-import { arePathsEqual } from "../../utils/path";
+import { arePathsEqual } from "../../../common/utils/filesystem/path";
 
 
 export async function openImage(dataUri: string) {

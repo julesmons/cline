@@ -5,7 +5,7 @@
     "jsxImportSource": "preact",
     "lib": [
       "DOM",
-      "ES2021"
+      "ES2023"
     ],
     "useDefineForClassFields": true,
     "baseUrl": "./",
@@ -44,7 +44,8 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     "test/**/*.test.ts",
-    "src/**/*.jsx"
+    "src/**/*.jsx",
+    "src/extension/core/mentions/errors"
   ],
   "exclude": [
     "node_modules",

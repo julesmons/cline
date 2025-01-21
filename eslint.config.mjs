@@ -35,7 +35,11 @@ export default antfu(
               "builtin-type",
               "external-type",
               "internal-type",
-              "aliased-shared-type",
+              "aliased-common-type",
+              "aliased-extension-core-type",
+              "aliased-extension-integrations-type",
+              "aliased-extension-lib-type",
+              "aliased-extension-services-type",
               "aliased-extension-type",
               "aliased-webview-ui-type",
               "parent-type",
@@ -46,7 +50,11 @@ export default antfu(
               "builtin",
               "external",
               "internal",
-              "aliased-shared",
+              "aliased-common",
+              "aliased-extension-core",
+              "aliased-extension-integrations",
+              "aliased-extension-lib",
+              "aliased-extension-services",
               "aliased-extension",
               "aliased-webview-ui",
               "parent",
@@ -60,13 +68,27 @@ export default antfu(
             newlinesBetween: "always",
             customGroups: {
               value: {
-                "aliased-shared": [/^@shared\/.*/],
+                // Common
+                "aliased-common": [/^@common\/.*/],
+                // Extension
+                "aliased-extension-core": [/^@extension\/core\/.*/],
+                "aliased-extension-integrations": [/^@extension\/integrations\/.*/],
+                "aliased-extension-lib": [/^@extension\/lib\/.*/],
+                "aliased-extension-services": [/^@extension\/services\/.*/],
                 "aliased-extension": [/^@extension\/.*/],
+                // Webview UI
                 "aliased-webview-ui": [/^@webview-ui\/.*/]
               },
               type: {
-                "aliased-shared-type": [/^@shared\/.*/],
+                // Common
+                "aliased-common-type": [/^@common\/.*/],
+                // Extension
+                "aliased-extension-core-type": [/^@extension\/core\/.*/],
+                "aliased-extension-integrations-type": [/^@extension\/integrations\/.*/],
+                "aliased-extension-lib-type": [/^@extension\/lib\/.*/],
+                "aliased-extension-services-type": [/^@extension\/services\/.*/],
                 "aliased-extension-type": [/^@extension\/.*/],
+                // Webview UI
                 "aliased-webview-ui-type": [/^@webview-ui\/.*/]
               }
             }
@@ -76,6 +98,7 @@ export default antfu(
           "error",
           {
             type: "natural",
+            partitionByNewLine: true,
             groups: [
               "index-signature",
               "static-property",

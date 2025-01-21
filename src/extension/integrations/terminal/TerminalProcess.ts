@@ -6,7 +6,7 @@ import { EventEmitter } from "node:events";
 
 import stripAnsi from "strip-ansi";
 
-import { sanitizeTerminalOutput } from "@extension/utils/sanitize";
+import { sanitizeTerminalOutput } from "@common/utils/sanitize";
 
 
 // Process timeouts

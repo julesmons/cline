@@ -5,7 +5,7 @@ import * as path from "node:path";
 import * as fs from "node:fs/promises";
 
 import { listFiles } from "@extension/services/fd";
-import { fileExistsAtPath } from "@extension/utils/fs";
+import { fileExistsAtPath } from "@common/utils/filesystem/fs";
 
 import { supportedExtensions } from "./supported";
 import { languageParser } from "./languageParser";

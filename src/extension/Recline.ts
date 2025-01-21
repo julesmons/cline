@@ -1,211 +1,359 @@
 import type { Anthropic } from "@anthropic-ai/sdk";
 
+import type { ReclineSettings } from "@extension/core/settings";
+import type { ModelProvider, ModelProviderConfig, ProviderResponseStream } from "@extension/core/models";
+import type { BrowserAction, BrowserActionResult, ReclineAsk, ReclineAskUseMcpServer, ReclineMessage, ReclineSayBrowserAction, ReclineSayTool, ReclineTask } from "@extension/core/tasks";
+
+import type { ReclineAskResponse } from "@extension/integrations/webview/types";
+
+import type { ToolParamName, ToolUseName } from "@extension/lib/feature/assistant-message";
+
 import type { ReclineProvider } from "@extension/ReclineProvider";
-import type { ReclineAskResponse } from "@extension/webview/types";
-import type { ProviderResponseStream } from "@extension/models/types";
-import type { ModelProvider, ModelProviderConfig } from "@extension/models/provider";
-import type { AssistantMessageContent, ToolParamName, ToolUseName } from "@extension/core/assistant-message";
-import type { BrowserAction, BrowserActionResult, ReclineApiReqCancelReason, ReclineApiReqInfo, ReclineAsk, ReclineAskUseMcpServer, ReclineMessage, ReclineSay, ReclineSayBrowserAction, ReclineSayTool, ReclineTask } from "@extension/core/tasks/types";
 
 import os from "node:os";
 import fs from "node:fs/promises";
 import * as path from "node:path";
+import { randomUUID } from "node:crypto";
 
 import * as vscode from "vscode";
 import pWaitFor from "p-wait-for";
 import { cloneDeep, delay } from "es-toolkit";
 import { serializeError } from "serialize-error";
-import { findLastIndex } from "@common/utils/array";
+
+import { sanitizeUserInput } from "@common/utils/sanitize";
+import { fileExistsAtPath } from "@common/utils/filesystem/fs";
 import { extractExceptionFromThrow } from "@common/utils/exception";
+import { fixModelHtmlEscaping } from "@common/utils/models/escaping";
 import { combineApiRequests } from "@common/utils/combineApiRequests";
+import { arePathsEqual, getReadablePath } from "@common/utils/filesystem/path";
 import { combineCommandSequences, COMMAND_REQ_APP_STRING } from "@common/utils/combineCommandSequences";
 
-import { listFiles } from "@extension/services/fd";
-import { fileExistsAtPath } from "@extension/utils/fs";
-import { parseMentions } from "@extension/core/mentions";
-import { modelProviderRegistrar } from "@extension/models";
-import { browserActions } from "@extension/core/tasks/types";
-import { sanitizeUserInput } from "@extension/utils/sanitize";
-import { regexSearchFiles } from "@extension/services/ripgrep";
-import { formatResponse } from "@extension/core/prompts/responses";
-import { arePathsEqual, getReadablePath } from "@extension/utils/path";
-import { parseAssistantMessage } from "@extension/core/assistant-message";
-import { truncateHalfConversation } from "@extension/core/sliding-window";
-import { StatefulModelProvider } from "@extension/models/stateful.provider";
-import { BrowserSession } from "@extension/integrations/browser/BrowserSession";
+import { ToolManager } from "@extension/core/tools";
+import { browserActions, ReclineSay } from "@extension/core/tasks";
+import { ModelProviderManager, StatefulModelProvider } from "@extension/core/models";
+
+import { OmissionManager } from "@extension/integrations/editor";
 import { extractTextFromFile } from "@extension/integrations/misc/extract-text";
-import { constructNewFileContent } from "@extension/core/assistant-message/diff";
-import { DiffViewProvider } from "@extension/integrations/editor/DiffViewProvider";
+import { BrowserManager } from "@extension/integrations/browser/browser.manager";
 import { TerminalManager } from "@extension/integrations/terminal/TerminalManager";
-import { fixModelHtmlEscaping, removeInvalidChars } from "@extension/utils/string";
-import { SYSTEM_PROMPT, USER_SYSTEM_PROMPT } from "@extension/core/prompts/system";
-import { showOmissionWarning } from "@extension/integrations/editor/detect-omission";
-import { GlobalFileNames, reclineRulesPath, workspaceRoot } from "@extension/constants";
-import { parseSourceCodeForDefinitionsTopLevel } from "@extension/services/tree-sitter";
-import { showError, showInfo, showWarning } from "@extension/integrations/notifications";
-import { generateInlineDiffs } from "@extension/core/assistant-message/generateInlineDiffs";
+import { DiffViewProvider } from "@extension/integrations/editor/diffView.provider";
+import { ReclineWorkspace } from "@extension/integrations/workspace/ReclineWorkspace";
+import { DiagnosticsManager } from "@extension/integrations/diagnostics/diagnostics.manager";
 import { getCachedEnvironmentInfo } from "@extension/integrations/workspace/environment-cache";
 import { findToolName, formatContentBlockToMarkdown } from "@extension/integrations/misc/export-markdown";
+
+import { parseMentions } from "@extension/lib/feature/mentions/utils";
+import { formatResponse } from "@extension/lib/feature/prompts/responses";
+import { ReadFileTool } from "@extension/lib/tools/filesystem/readFile.tool";
+import { parseAssistantMessage } from "@extension/lib/feature/assistant-message";
+import { SlidingContextWindowManager } from "@extension/lib/feature/sliding-window";
+import { constructNewFileContent } from "@extension/lib/feature/assistant-message/diff";
+import { SYSTEM_PROMPT, USER_SYSTEM_PROMPT } from "@extension/lib/feature/prompts/system";
+import { ERROR_PREFIX, VSCodeLmModelProvider } from "@extension/lib/models/providers/vscode-lm";
+import { generateInlineDiffs } from "@extension/lib/feature/assistant-message/generateInlineDiffs";
+
+import { listFiles } from "@extension/services/fd";
+import { regexSearchFiles } from "@extension/services/ripgrep";
+import { NotificationService } from "@extension/services/notifications";
+import { parseSourceCodeForDefinitionsTopLevel } from "@extension/services/tree-sitter";
 
 
 type ToolResponse = string | Array<Anthropic.TextBlockParam | Anthropic.ImageBlockParam>;
 type UserContent = Array<Anthropic.TextBlockParam | Anthropic.ImageBlockParam | Anthropic.ToolUseBlockParam | Anthropic.ToolResultBlockParam | Anthropic.DocumentBlockParam>;
 
 export class Recline {
-  private abort: boolean = false;
-  private askResponse?: ReclineAskResponse;
-  private askResponseImages?: string[];
-  private askResponseText?: string;
-  private assistantMessageContent: AssistantMessageContent[] = [];
-  private browserSession: BrowserSession;
-  private consecutiveAutoApprovedRequestsCount: number = 0;
-  private consecutiveMistakeCount: number = 0;
-  private currentStreamingContentIndex: number = 0;
-  private didAlreadyUseTool: boolean = false;
-  private didCompleteReadingStream: boolean = false;
-  private didEditFile: boolean = false;
-  private didRejectTool: boolean = false;
-  private diffViewProvider: DiffViewProvider;
-  private lastMessageTs?: number;
-  private presentAssistantMessageHasPendingUpdates: boolean = false;
-  private presentAssistantMessageLocked: boolean = false;
-  private providerRef: WeakRef<ReclineProvider>;
-  private terminalManager: TerminalManager;
-  private userMessageContent: (Anthropic.TextBlockParam | Anthropic.ImageBlockParam)[] = [];
-  private userMessageContentReady: boolean = false;
 
-  abandoned: boolean = false;
-  api: ModelProvider<ModelProviderConfig>;
-  apiConversationHistory: MessageParamWithTokenCount[] = [];
-  autoApprovalSettings: AutoApprovalSettings;
-  customInstructions?: string;
-  didFinishAborting: boolean = false;
-  reclineMessages: ReclineMessage[] = [];
-  readonly taskId: string;
+  // State
+  private initialized: boolean = false;
+  private task: ReclineTask | null = null;
+
+  private taskLoopCancellation: vscode.CancellationTokenSource | null = null;
+
+  // TODO: Determine wether or not this should be deprecated...
+  private reclineProviderRef: WeakRef<ReclineProvider>;
+
+  // Dependencies
+  private currentModelProvider: ModelProvider<ModelProviderConfig> | null = null;
+  private diffViewProvider: DiffViewProvider;
+
+  // Integration
+  private readonly browserSession: BrowserManager;
+  private readonly diagnosticsManager: DiagnosticsManager;
+  private readonly slidingContextWindowManager: SlidingContextWindowManager;
+  private readonly terminalManager: TerminalManager;
+
+  private readonly modelProviderManager: ModelProviderManager;
+  private readonly toolManager: ToolManager;
+
+  // Old state (Should be moved into the ReclineTask to allow state hydration from history instead of costly re-syncing...)
+  // private abandoned: boolean = false;
+  // private abort: boolean = false;
+  // private consecutiveAutoApprovedRequestsCount: number = 0;
+  // private consecutiveMistakeCount: number = 0;
+  // private currentStreamingContentIndex: number = 0;
+  // private didAlreadyUseTool: boolean = false;
+  // private didCompleteReadingStream: boolean = false;
+  // private didEditFile: boolean = false;
+  // private didRejectTool: boolean = false;
+  // didFinishAborting: boolean = false;
+  // private lastMessageTs?: number;
+
+  // Old Conversation (Determine if this better fits into some sort of manager...)
+  // private askResponse?: ReclineAskResponse;
+  // private askResponseImages?: string[];
+  // private askResponseText?: string;
+  // private assistantMessageContent: AssistantMessageContent[] = [];
+  // private presentAssistantMessageHasPendingUpdates: boolean = false;
+  // private presentAssistantMessageLocked: boolean = false;
+  // private userMessageContent: (Anthropic.TextBlockParam | Anthropic.ImageBlockParam)[] = [];
+  // private userMessageContentReady: boolean = false;
+
+  // Deprecated...
+  // apiConversationHistory: MessageParamWithTokenCount[] = [];
+  // autoApprovalSettings: AutoApprovalSettings;
+  // customInstructions?: string;
+  // reclineMessages: ReclineMessage[] = [];
+  // readonly taskId: string;
 
   constructor(
-    provider: ReclineProvider,
-    { apiProvider, ...apiProviderOptions }: ApiConfiguration,
-    autoApprovalSettings: AutoApprovalSettings,
-    customInstructions?: string,
-    task?: string,
-    images?: string[],
-    historyItem?: HistoryItem
+    reclineProvider: ReclineProvider,
+    // Pass snapshot of settings to create a constant environment for the Recline instance.
+    // If settings changes must be respected, the Recline instance should be recreated by the ReclineProvider.
+    private readonly settings: ReclineSettings
   ) {
-    this.providerRef = new WeakRef(provider);
 
-    this.api = modelProviderRegistrar.buildProvider(
-      apiProvider,
-      apiProviderOptions
+    // Setup WeakRef to the ReclineProvider that created this Recline instance.
+    this.reclineProviderRef = new WeakRef(reclineProvider);
+
+    // Setup dependencies
+    this.diagnosticsManager = new DiagnosticsManager();
+    this.diffViewProvider = new DiffViewProvider(
+      ReclineWorkspace.workspaceRoot,
+      this.diagnosticsManager
     );
 
     this.terminalManager = new TerminalManager();
-    this.browserSession = new BrowserSession(provider.context);
-    this.diffViewProvider = new DiffViewProvider(workspaceRoot);
-    this.customInstructions = customInstructions;
-    this.autoApprovalSettings = autoApprovalSettings;
-    if (historyItem) {
-      this.taskId = historyItem.id;
-      void this.resumeTaskFromHistory();
-    }
-    else if (task != null || images != null) {
-      this.taskId = Date.now().toString();
-      void this.startTask(task, images);
-    }
-    else {
-      throw new Error("Either historyItem or task/images must be provided");
-    }
+    this.browserSession = new BrowserManager(reclineProvider.context);
+
+    this.slidingContextWindowManager = new SlidingContextWindowManager();
+
+    // Register Model Providers
+    this.modelProviderManager = new ModelProviderManager(
+      new Map([
+        ["vscode-lm", VSCodeLmModelProvider]
+      ])
+    );
+
+    // Register Tools
+    this.toolManager = new ToolManager(
+      new Map([
+        ["read_file", ReadFileTool]
+      ])
+    );
   }
 
-  private async addToApiConversationHistory(message: MessageParamWithTokenCount): Promise<void> {
-    this.apiConversationHistory.push(message);
-    await this.saveApiConversationHistory();
+  private releaseTaskLoopCancellation(): void {
+
+    // Sanity-check
+    if (this.taskLoopCancellation?.token == null) {
+      return;
+    }
+
+    this.taskLoopCancellation.cancel();
+    this.taskLoopCancellation.dispose();
+    this.taskLoopCancellation = null;
   }
 
-  private async addToReclineMessages(message: ReclineMessage): Promise<void> {
-    this.reclineMessages.push(message);
-    await this.saveReclineMessages();
+  private initializeNewTaskLoopCancellation(): void {
+
+    if (this.taskLoopCancellation) {
+      throw new Error(`A cancellation token is already active. Cancellation tokens may not be overridden to ensure proper cleanup.`);
+    }
+
+    this.taskLoopCancellation = new vscode.CancellationTokenSource();
+    this.taskLoopCancellation.token.onCancellationRequested(async (): Promise<void> => {
+      await this.dispose();
+    });
   }
 
-  private async ensureTaskDirectoryExists(): Promise<string> {
-    const globalStoragePath = this.providerRef.deref()?.context.globalStorageUri.fsPath;
-    if (globalStoragePath == null || globalStoragePath.length === 0) {
-      throw new Error("Global storage uri is invalid");
+  private async initialize(): Promise<void> {
+
+    if (this.initialized) {
+      return;
     }
-    const taskDir = path.join(globalStoragePath, "tasks", this.taskId);
-    await fs.mkdir(taskDir, { recursive: true });
-    return taskDir;
+
+    // Instantiate Model Provider
+    this.currentModelProvider = await this.modelProviderManager.instantiateModelProvider(
+      this.settings.preferences.modelProvider.selectedModelProviderId,
+      this.settings.lib.modelProvider[this.settings.preferences.modelProvider.selectedModelId ?? "default"]?.config ?? {}
+    );
+
+    // Mark instance as initialized
+    this.initialized = true;
   }
 
-  private async getSavedApiConversationHistory(): Promise<MessageParamWithTokenCount[]> {
-    const filePath = path.join(await this.ensureTaskDirectoryExists(), GlobalFileNames.apiConversationHistory);
-    const fileExists = await fileExistsAtPath(filePath);
-    if (fileExists) {
-      return JSON.parse(await fs.readFile(filePath, "utf8")) as MessageParamWithTokenCount[];
+  public async dispose(): Promise<void> {
+
+    if (!this.initialized) {
+      return;
     }
-    return [];
+
+    this.releaseTaskLoopCancellation();
+
+    // Dispose of all dependencies in parallel
+    await Promise.all([
+      this.terminalManager.disposeAll(),
+      this.browserSession.closeBrowser(),
+      this.diffViewProvider.revertChanges(),
+      this.modelProviderManager.dispose()
+    ]);
+
+    // TODO: More dispose if needed...
+
+    this.initialized = false;
   }
 
-  private async getSavedReclineMessages(): Promise<ReclineMessage[]> {
-    const filePath = path.join(await this.ensureTaskDirectoryExists(), GlobalFileNames.uiMessages);
-    if (await fileExistsAtPath(filePath)) {
-      return JSON.parse(await fs.readFile(filePath, "utf8")) as ReclineMessage[];
-    }
-    else {
-      // check old location
-      const oldPath = path.join(await this.ensureTaskDirectoryExists(), "claude_messages.json");
-      if (await fileExistsAtPath(oldPath)) {
-        const data = JSON.parse(await fs.readFile(oldPath, "utf8")) as ReclineMessage[];
-        await fs.unlink(oldPath); // remove old file
-        return data;
-      }
-    }
-    return [];
-  }
+  // private async addToApiConversationHistory(message: MessageParamWithTokenCount): Promise<void> {
+  //   this.apiConversationHistory.push(message);
+  //   await this.saveApiConversationHistory();
+  // }
+
+  // private async addToReclineMessages(message: ReclineMessage): Promise<void> {
+  //   this.reclineMessages.push(message);
+  //   await this.saveReclineMessages();
+  // }
+
+  // private async ensureTaskDirectoryExists(): Promise<string> {
+  //   const globalStoragePath = this.providerRef.deref()?.context.globalStorageUri.fsPath;
+  //   if (globalStoragePath == null || globalStoragePath.length === 0) {
+  //     throw new Error("Global storage uri is invalid");
+  //   }
+  //   const taskDir = path.join(globalStoragePath, "tasks", this.taskId);
+  //   await fs.mkdir(taskDir, { recursive: true });
+  //   return taskDir;
+  // }
+
+  // private async getSavedApiConversationHistory(): Promise<MessageParamWithTokenCount[]> {
+  //   const filePath = path.join(await this.ensureTaskDirectoryExists(), GlobalFileNames.apiConversationHistory);
+  //   const fileExists = await fileExistsAtPath(filePath);
+  //   if (fileExists) {
+  //     return JSON.parse(await fs.readFile(filePath, "utf8")) as MessageParamWithTokenCount[];
+  //   }
+  //   return [];
+  // }
+
+  // private async getSavedReclineMessages(): Promise<ReclineMessage[]> {
+  //   const filePath = path.join(await this.ensureTaskDirectoryExists(), GlobalFileNames.uiMessages);
+  //   if (await fileExistsAtPath(filePath)) {
+  //     return JSON.parse(await fs.readFile(filePath, "utf8")) as ReclineMessage[];
+  //   }
+  //   else {
+  //     // check old location
+  //     const oldPath = path.join(await this.ensureTaskDirectoryExists(), "claude_messages.json");
+  //     if (await fileExistsAtPath(oldPath)) {
+  //       const data = JSON.parse(await fs.readFile(oldPath, "utf8")) as ReclineMessage[];
+  //       await fs.unlink(oldPath); // remove old file
+  //       return data;
+  //     }
+  //   }
+  //   return [];
+  // }
 
   private async initiateTaskLoop(userContent: UserContent): Promise<void> {
+
+    if (!this.initialized) {
+      throw new Error("Recline instance is not initialized");
+    }
+
+    // Ensure no cancellation token is active
+    this.releaseTaskLoopCancellation();
+
+    // Initialize new cancellation token source
+    this.initializeNewTaskLoopCancellation();
+
     let nextUserContent = userContent;
     let includeFileDetails = true;
-    while (!this.abort) {
-      const didEndLoop = await this.recursivelyMakeReclineRequests(nextUserContent, includeFileDetails, true);
+
+    while (!this.taskLoopCancellation?.token?.isCancellationRequested) {
+
+      const loopShouldEnd: boolean = await this.recursivelyMakeReclineRequests(nextUserContent, includeFileDetails, true);
       includeFileDetails = false; // we only need file details the first time
 
-      //  The way this agentic loop works is that recline will be given a task that he then calls tools to complete. unless there's an attempt_completion call, we keep responding back to him with his tool's responses until he either attempt_completion or does not use anymore tools. If he does not use anymore tools, we ask him to consider if he's completed the task and then call attempt_completion, otherwise proceed with completing the task.
+      // The way this agentic loop works is that recline will be given a task that he then calls tools to complete. unless there's an attempt_completion call, we keep responding back to him with his tool's responses until he either attempt_completion or does not use anymore tools. If he does not use anymore tools, we ask him to consider if he's completed the task and then call attempt_completion, otherwise proceed with completing the task.
       // There is a MAX_REQUESTS_PER_TASK limit to prevent infinite requests, but Recline is prompted to finish the task as efficiently as he can.
 
       // const totalCost = this.calculateApiCost(totalInputTokens, totalOutputTokens)
-      if (didEndLoop) {
+      if (loopShouldEnd) {
         // For now a task never 'completes'. This will only happen if the user hits max requests and denies resetting the count.
         // this.say("task_completed", `Task completed. Total API usage cost: ${totalCost}`)
+        await this.say(ReclineSay.ERROR, "Unexpected task completion");
         break;
       }
-      else {
-        // this.say(
-        //  "tool",
-        //  "Recline responded with only text blocks but has not called attempt_completion yet. Forcing him to continue with task..."
-        // )
-        nextUserContent = [
-          {
-            type: "text",
-            text: formatResponse.noToolsUsed()
-          }
-        ];
-        this.consecutiveMistakeCount++;
-      }
+
+      // this.say(
+      //  "tool",
+      //  "Recline responded with only text blocks but has not called attempt_completion yet. Forcing him to continue with task..."
+      // )
+      nextUserContent = [
+        {
+          type: "text",
+          text: formatResponse.noToolsUsed()
+        }
+      ];
+
+      this.consecutiveMistakeCount++;
     }
   }
 
-  private async overwriteApiConversationHistory(newHistory: MessageParamWithTokenCount[]): Promise<void> {
-    this.apiConversationHistory = newHistory;
-    await this.saveApiConversationHistory();
+  // private async overwriteApiConversationHistory(newHistory: MessageParamWithTokenCount[]): Promise<void> {
+  //   this.apiConversationHistory = newHistory;
+  //   await this.saveApiConversationHistory();
+  // }
+
+  // private async overwriteReclineMessages(newMessages: ReclineMessage[]): Promise<void> {
+  //   this.reclineMessages = newMessages;
+  //   await this.saveReclineMessages();
+  // }
+
+  private async initializeNew(taskPrompt: string, images?: string[]): Promise<void> {
+
+    if (this.task != null) {
+      throw new Error("This Recline instance is already handling a task");
+    }
+
+    const pendingTaskId: string = randomUUID();
+    this.task = {
+      id: pendingTaskId,
+      ts: Date.now(),
+      usage: {
+        totalInputTokenCount: 0,
+        totalOutputTokenCount: 0,
+        totalCacheReadTokenCount: 0,
+        totalCacheWriteTokenCount: 0,
+        totalCost: 0
+      },
+      messages: [
+        {
+          id: randomUUID(),
+          taskId: pendingTaskId,
+          modelProviderId: this.currentModelProvider?.name ?? "default",
+          ts: Date.now(),
+          partial: false,
+
+          type: "say",
+          say: ReclineSay.TEXT,
+
+          content: taskPrompt,
+          images
+        }
+      ]
+    };
+
+    await this.initialize();
   }
 
-  private async overwriteReclineMessages(newMessages: ReclineMessage[]): Promise<void> {
-    this.reclineMessages = newMessages;
-    await this.saveReclineMessages();
-  }
+  private async initializeExisting(task: ReclineTask): Promise<void> {
 
-  private async resumeTaskFromHistory(): Promise<void> {
     const modifiedReclineMessages = await this.getSavedReclineMessages();
 
     // Remove any resume messages that may have been added before
@@ -444,50 +592,52 @@ export class Recline {
       newUserContent.push(...formatResponse.imageBlocks(responseImages));
     }
 
-    await this.overwriteApiConversationHistory(modifiedApiConversationHistory);
+    await this.initialize();
+
+    // await this.overwriteApiConversationHistory(modifiedApiConversationHistory);
     await this.initiateTaskLoop(newUserContent);
   }
 
-  private async saveApiConversationHistory(): Promise<void> {
-    try {
-      const filePath = path.join(await this.ensureTaskDirectoryExists(), GlobalFileNames.apiConversationHistory);
-      await fs.writeFile(filePath, JSON.stringify(this.apiConversationHistory));
-    }
-    catch (error) {
-      // in the off chance this fails, we don't want to stop the task
-      console.error("Failed to save API conversation history:", error);
-    }
-  }
+  // private async saveApiConversationHistory(): Promise<void> {
+  //   try {
+  //     const filePath = path.join(await this.ensureTaskDirectoryExists(), GlobalFileNames.apiConversationHistory);
+  //     await fs.writeFile(filePath, JSON.stringify(this.apiConversationHistory));
+  //   }
+  //   catch (error) {
+  //     // in the off chance this fails, we don't want to stop the task
+  //     console.error("Failed to save API conversation history:", error);
+  //   }
+  // }
 
-  private async saveReclineMessages(): Promise<void> {
-    try {
-      const filePath = path.join(await this.ensureTaskDirectoryExists(), GlobalFileNames.uiMessages);
-      await fs.writeFile(filePath, JSON.stringify(this.reclineMessages));
-      // combined as they are in ChatView
-      const apiMetrics = getApiMetrics(combineApiRequests(combineCommandSequences(this.reclineMessages.slice(1))));
-      const taskMessage = this.reclineMessages[0]; // first message is always the task say
-      const lastRelevantMessage
-        = this.reclineMessages[
-          findLastIndex(
-            this.reclineMessages,
-            m => !(m.ask === "resume_task" || m.ask === "resume_completed_task")
-          )
-        ];
-      await this.providerRef.deref()?.updateTaskHistory({
-        id: this.taskId,
-        ts: lastRelevantMessage.ts,
-        task: taskMessage.text ?? "",
-        tokensIn: apiMetrics.totalTokensIn,
-        tokensOut: apiMetrics.totalTokensOut,
-        cacheWrites: apiMetrics.totalCacheWrites,
-        cacheReads: apiMetrics.totalCacheReads,
-        totalCost: apiMetrics.totalCost
-      });
-    }
-    catch (error) {
-      console.error("Failed to save recline messages:", error);
-    }
-  }
+  // private async saveReclineMessages(): Promise<void> {
+  //   try {
+  //     const filePath = path.join(await this.ensureTaskDirectoryExists(), GlobalFileNames.uiMessages);
+  //     await fs.writeFile(filePath, JSON.stringify(this.reclineMessages));
+  //     // combined as they are in ChatView
+  //     const apiMetrics = getApiMetrics(combineApiRequests(combineCommandSequences(this.reclineMessages.slice(1))));
+  //     const taskMessage = this.reclineMessages[0]; // first message is always the task say
+  //     const lastRelevantMessage
+  //       = this.reclineMessages[
+  //         findLastIndex(
+  //           this.reclineMessages,
+  //           m => !(m.ask === "resume_task" || m.ask === "resume_completed_task")
+  //         )
+  //       ];
+  //     await this.providerRef.deref()?.updateTaskHistory({
+  //       id: this.taskId,
+  //       ts: lastRelevantMessage.ts,
+  //       task: taskMessage.text ?? "",
+  //       tokensIn: apiMetrics.totalTokensIn,
+  //       tokensOut: apiMetrics.totalTokensOut,
+  //       cacheWrites: apiMetrics.totalCacheWrites,
+  //       cacheReads: apiMetrics.totalCacheReads,
+  //       totalCost: apiMetrics.totalCost
+  //     });
+  //   }
+  //   catch (error) {
+  //     console.error("Failed to save recline messages:", error);
+  //   }
+  // }
 
   private async startTask(task?: string, images?: string[]): Promise<void> {
     // conversationHistory (for API) and reclineMessages (for webview) need to be in sync
@@ -509,10 +659,7 @@ export class Recline {
   }
 
   async abortTask(): Promise<void> {
-    this.abort = true; // will stop any autonomously running promises
-    this.terminalManager.disposeAll();
-    await this.browserSession.closeBrowser();
-    await this.diffViewProvider.revertChanges();
+    this.taskLoopCancellation?.cancel();
   }
 
   // partial has three valid states true (partial message), false (completion of partial message), undefined (individual complete message)
@@ -521,10 +668,12 @@ export class Recline {
     text?: string,
     partial?: boolean
   ): Promise<{ response: ReclineAskResponse; text?: string; images?: string[] }> {
+
     // If this Recline instance was aborted by the provider, then the only thing keeping us alive is a promise still running in the background, in which case we don't want to send its result to the webview as it is attached to a new instance of Recline now. So we can safely ignore the result of any active promises, and this class will be deallocated. (Although we set Recline = undefined in provider, that simply removes the reference to this instance, but the instance is still alive until this promise resolves or rejects.)
-    if (this.abort) {
+    if (this.taskLoopCancellation?.token?.isCancellationRequested) {
       throw new Error("Recline instance aborted");
     }
+
     let askTs: number;
     if (partial !== undefined) {
       const lastMessage = this.reclineMessages.at(-1);
@@ -655,7 +804,7 @@ export class Recline {
         const maxAllowedSize: number = contextWindow - (contextWindow * 0.25);
 
         if (totalTokens >= maxAllowedSize) {
-          const truncatedMessages = truncateHalfConversation(model, this.apiConversationHistory);
+          const truncatedMessages = applySlidingContextWindow(model, this.apiConversationHistory);
           await this.overwriteApiConversationHistory(truncatedMessages);
         }
       }
@@ -752,8 +901,7 @@ export class Recline {
       return [
         true,
         formatResponse.toolResult(
-          `Command is still running in the user's terminal.${
-            result.length > 0 ? `\nHere's the output so far:\n${result}` : ""
+          `Command is still running in the user's terminal.${result.length > 0 ? `\nHere's the output so far:\n${result}` : ""
           }\n\nThe user provided the following feedback:\n<feedback>\n${userFeedback.text}\n</feedback>`,
           userFeedback.images
         )
@@ -766,8 +914,7 @@ export class Recline {
     else {
       return [
         false,
-        `Command is still running in the user's terminal.${
-          result.length > 0 ? `\nHere's the output so far:\n${result}` : ""
+        `Command is still running in the user's terminal.${result.length > 0 ? `\nHere's the output so far:\n${result}` : ""
         }\n\nYou will be updated on the terminal status and new output in the future.`
       ];
     }
@@ -1123,7 +1270,7 @@ export class Recline {
         };
 
         if (this.didRejectTool) {
-        // ignore any tool content after user has rejected tool once
+          // ignore any tool content after user has rejected tool once
           if (!block.partial) {
             this.userMessageContent.push({
               type: "text",
@@ -1131,7 +1278,7 @@ export class Recline {
             });
           }
           else {
-          // partial tool after user rejected a previous tool
+            // partial tool after user rejected a previous tool
             this.userMessageContent.push({
               type: "text",
               text: `Tool ${toolDescription()} was interrupted and not executed due to user rejecting a previous tool.`
@@ -1141,7 +1288,7 @@ export class Recline {
         }
 
         if (this.didAlreadyUseTool) {
-        // ignore any content after a tool has already been used
+          // ignore any content after a tool has already been used
           this.userMessageContent.push({
             type: "text",
             text: `Tool [${block.name}] was not executed because a tool has already been used in this message. Only one tool may be used per message. You must assess the first tool's result before proceeding to use the next tool.`
@@ -1205,7 +1352,7 @@ export class Recline {
         const showNotificationForApprovalIfAutoApprovalEnabled = (message: string): void => {
           if (this.autoApprovalSettings.enabled && this.autoApprovalSettings.enableNotifications) {
             // Usage of void is very unsafe. The big refactor to event-driven architecture should take care of this.
-            void showInfo({
+            void NotificationService.showInfo({
               title: "Approval Required",
               message
             });
@@ -1395,7 +1542,10 @@ export class Recline {
                 await this.diffViewProvider.update(newContent, true);
                 await delay(300); // wait for diff view to update
                 this.diffViewProvider.scrollToFirstDiff();
-                showOmissionWarning(this.diffViewProvider.originalContent ?? "", newContent);
+
+                if (OmissionManager.detectCodeOmission(this.diffViewProvider.originalContent ?? "", newContent)) {
+                  OmissionManager.showCodeOmissionWarning();
+                }
 
                 const completeMessage = JSON.stringify({
                   ...sharedMessageProps,
@@ -1761,9 +1911,9 @@ export class Recline {
             const coordinate: string | undefined = block.params.coordinate;
             const text: string | undefined = block.params.text;
             if (!action || !browserActions.includes(action)) {
-            // checking for action to ensure it is complete and valid
+              // checking for action to ensure it is complete and valid
               if (!block.partial) {
-              // if the block is complete and we don't have a valid action this is a mistake
+                // if the block is complete and we don't have a valid action this is a mistake
                 this.consecutiveMistakeCount++;
                 pushToolResult(await this.sayAndCreateMissingParamError("browser_action", "action"));
                 await this.browserSession.closeBrowser();
@@ -1938,16 +2088,16 @@ export class Recline {
             try {
               if (block.partial) {
                 if (this.shouldAutoApproveTool(block.name)) {
-                // since depending on an upcoming parameter, requiresApproval this may become an ask - we cant partially stream a say prematurely. So in this particular case we have to wait for the requiresApproval parameter to be completed before presenting it.
-                // await this.say(
-                //  "command",
-                //  removeClosingTag("command", command),
-                //  undefined,
-                //  block.partial,
-                // ).catch(() => {})
+                  // since depending on an upcoming parameter, requiresApproval this may become an ask - we cant partially stream a say prematurely. So in this particular case we have to wait for the requiresApproval parameter to be completed before presenting it.
+                  // await this.say(
+                  //  "command",
+                  //  removeClosingTag("command", command),
+                  //  undefined,
+                  //  block.partial,
+                  // ).catch(() => {})
                 }
                 else {
-                // don't need to remove last partial since we couldn't have streamed a say
+                  // don't need to remove last partial since we couldn't have streamed a say
                   await this.ask(
                     "command",
                     await removeClosingTag("command", command),
@@ -2001,10 +2151,10 @@ export class Recline {
 
                 let timeoutId: NodeJS.Timeout | undefined;
                 if (didAutoApprove && this.autoApprovalSettings.enableNotifications) {
-                // if the command was auto-approved, and it's long running we need to notify the user after some time has passed without proceeding
+                  // if the command was auto-approved, and it's long running we need to notify the user after some time has passed without proceeding
                   timeoutId = setTimeout(() => {
                     // Usage of void is unsafe. The refactor to event driver architecture should fix this.
-                    void showWarning({
+                    void NotificationService.showWarning({
                       title: "Command is still running",
                       message:
                         "An auto-approved command has been running for 30s, and may need your attention."
@@ -2258,7 +2408,7 @@ export class Recline {
                   this.autoApprovalSettings.enabled
                   && this.autoApprovalSettings.enableNotifications
                 ) {
-                  await showInfo({
+                  void NotificationService.showInfo({
                     title: "Recline has a question...",
                     message: question.replace(/\n/g, " ")
                   });
@@ -2276,39 +2426,39 @@ export class Recline {
             }
           }
           case "attempt_completion": {
-          /*
-            this.consecutiveMistakeCount = 0
-            let resultToSend = result
-            if (command) {
-              await this.say("completion_result", resultToSend)
-              // TODO: currently we don't handle if this command fails, it could be useful to let recline know and retry
-              const [didUserReject, commandResult] = await this.executeCommand(command, true)
-              // if we received non-empty string, the command was rejected or failed
-              if (commandResult) {
-                return [didUserReject, commandResult]
+            /*
+              this.consecutiveMistakeCount = 0
+              let resultToSend = result
+              if (command) {
+                await this.say("completion_result", resultToSend)
+                // TODO: currently we don't handle if this command fails, it could be useful to let recline know and retry
+                const [didUserReject, commandResult] = await this.executeCommand(command, true)
+                // if we received non-empty string, the command was rejected or failed
+                if (commandResult) {
+                  return [didUserReject, commandResult]
+                }
+                resultToSend = ""
               }
-              resultToSend = ""
-            }
-            const { response, text, images } = await this.ask("completion_result", resultToSend) // this prompts webview to show 'new task' button, and enable text input (which would be the 'text' here)
-            if (response === "yesButtonClicked") {
-              return [false, ""] // signals to recursive loop to stop (for now this never happens since yesButtonClicked will trigger a new task)
-            }
-            await this.say("user_feedback", text ?? "", images)
-            return [
-            */
+              const { response, text, images } = await this.ask("completion_result", resultToSend) // this prompts webview to show 'new task' button, and enable text input (which would be the 'text' here)
+              if (response === "yesButtonClicked") {
+                return [false, ""] // signals to recursive loop to stop (for now this never happens since yesButtonClicked will trigger a new task)
+              }
+              await this.say("user_feedback", text ?? "", images)
+              return [
+              */
             const result: string | undefined = block.params.result;
             const command: string | undefined = block.params.command;
             try {
               const lastMessage = this.reclineMessages.at(-1);
               if (block.partial) {
                 if (command != null && command.length > 0) {
-                // the attempt_completion text is done, now we're getting command
-                // remove the previous partial attempt_completion ask, replace with say, post state to webview, then stream command
+                  // the attempt_completion text is done, now we're getting command
+                  // remove the previous partial attempt_completion ask, replace with say, post state to webview, then stream command
 
                   // const secondLastMessage = this.reclineMessages.at(-2)
                   // NOTE: we do not want to auto approve a command run as part of the attempt_completion tool
                   if (lastMessage && lastMessage.ask === "command") {
-                  // update command
+                    // update command
                     await this.ask(
                       "command",
                       await removeClosingTag("command", command),
@@ -2316,8 +2466,8 @@ export class Recline {
                     ).catch(() => { });
                   }
                   else {
-                  // last message is completion_result
-                  // we have command string, which means we have the result as well, so finish it (doesnt have to exist yet)
+                    // last message is completion_result
+                    // we have command string, which means we have the result as well, so finish it (doesnt have to exist yet)
                     await this.say(
                       "completion_result",
                       await removeClosingTag("result", result),
@@ -2332,7 +2482,7 @@ export class Recline {
                   }
                 }
                 else {
-                // no command, still outputting partial result
+                  // no command, still outputting partial result
                   await this.say(
                     "completion_result",
                     await removeClosingTag("result", result),
@@ -2356,7 +2506,7 @@ export class Recline {
                   this.autoApprovalSettings.enabled
                   && this.autoApprovalSettings.enableNotifications
                 ) {
-                  await showInfo({
+                  void NotificationService.showInfo({
                     title: "Task Completed",
                     message: result.replace(/\n/g, " ")
                   });
@@ -2365,7 +2515,7 @@ export class Recline {
                 let commandResult: ToolResponse | undefined;
                 if (command != null && command.length > 0) {
                   if (lastMessage && lastMessage.ask !== "command") {
-                  // havent sent a command message yet so first send completion_result then command
+                    // havent sent a command message yet so first send completion_result then command
                     await this.say("completion_result", result, undefined, false);
                   }
 
@@ -2424,7 +2574,8 @@ export class Recline {
             }
           }
         }
-        break; }
+        break;
+      }
     }
 
     /*
@@ -2474,7 +2625,7 @@ export class Recline {
 
     if (this.consecutiveMistakeCount >= 3) {
       if (this.autoApprovalSettings.enabled && this.autoApprovalSettings.enableNotifications) {
-        await showError({
+        void NotificationService.showError({
           title: "Error",
           message: "Recline is having trouble. Would you like to continue the task?"
         });
@@ -2502,7 +2653,7 @@ export class Recline {
       && this.consecutiveAutoApprovedRequestsCount >= this.autoApprovalSettings.maxRequests
     ) {
       if (this.autoApprovalSettings.enableNotifications) {
-        await showWarning({
+        void NotificationService.showWarning({
           title: "Max Requests Reached",
           message: `Recline has auto-approved ${this.autoApprovalSettings.maxRequests.toString()} API requests.`
         });
