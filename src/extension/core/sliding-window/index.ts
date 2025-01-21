@@ -81,7 +81,11 @@ export class SlidingContextWindowManager {
       }
 
       const strategy = this.getStrategy(model, validatedMessages);
-      return strategy.applyTruncation(model, validatedMessages);
+      const truncatedMessages = strategy.applyTruncation(model, validatedMessages);
+
+      console.log(`Recline <SlidingContextWindowManager>: Retaining ${truncatedMessages.length} out of ${messages.length} messages`);
+
+      return truncatedMessages;
     }
     catch (error) {
       console.error("Error in sliding window truncation:", error);

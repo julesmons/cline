@@ -92,6 +92,8 @@ export class VSCodeLmModelProvider implements ModelProvider {
       totalTokens += tokenCount;
     }
 
+    console.log("Recline <Language Model API>: Total input tokens calculated:", totalTokens);
+
     return totalTokens;
   }
 
