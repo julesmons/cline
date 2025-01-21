@@ -1108,7 +1108,7 @@ export class Recline {
               return `[${block.name} for '${block.params.path}']`;
             case "replace_in_file":
               return `[${block.name} for '${block.params.path}']`;
-            case "search_files":
+            case "search_within_files":
               return `[${block.name} for '${block.params.regex}'${block.params.file_pattern ? ` in '${block.params.file_pattern}'` : ""
               }]`;
             case "list_files":
@@ -1689,7 +1689,7 @@ export class Recline {
               break;
             }
           }
-          case "search_files": {
+          case "search_within_files": {
             const relDirPath: string | undefined = block.params.path;
             const regex: string | undefined = block.params.regex;
             const filePattern: string | undefined = block.params.file_pattern;
@@ -1718,12 +1718,12 @@ export class Recline {
               else {
                 if (!relDirPath) {
                   this.consecutiveMistakeCount++;
-                  pushToolResult(await this.sayAndCreateMissingParamError("search_files", "path"));
+                  pushToolResult(await this.sayAndCreateMissingParamError("search_within_files", "path"));
                   break;
                 }
                 if (!regex) {
                   this.consecutiveMistakeCount++;
-                  pushToolResult(await this.sayAndCreateMissingParamError("search_files", "regex"));
+                  pushToolResult(await this.sayAndCreateMissingParamError("search_within_files", "regex"));
                   break;
                 }
                 this.consecutiveMistakeCount = 0;
@@ -2861,7 +2861,7 @@ export class Recline {
         case "read_file":
         case "list_files":
         case "extract_code_signatures":
-        case "search_files":
+        case "search_within_files":
           return this.autoApprovalSettings.actions.readFiles;
         case "write_to_file":
         case "replace_in_file":

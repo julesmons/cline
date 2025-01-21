@@ -247,8 +247,8 @@ You are designed to accomplish complex tasks iteratively by breaking them down i
         *   This is the preferred tool for most file edits, especially for small, localized changes.
         *   After using \`replace_in_file\`, the user's editor may automatically format the file. The tool response will include the final formatted state. Use this final state for subsequent edits.
 
-*   **\`search_files\`**
-    *   **Description:** Performs a regular expression search across multiple files in a specified directory, providing context-rich results. This tool searches for patterns or specific content across multiple files, displaying each match with encapsulating context.
+*   **\`search_within_files\`**
+    *   **Description:** Performs a regular expression search within and across multiple files in a specified directory, providing context-rich results. This tool searches for patterns or specific content within and across multiple files, displaying each match with encapsulating context.
     *   **Parameters:**
         *   \`path\` (required): The path to the directory to search (relative to \`${formattedCwd}\`). The search will be performed recursively on all subdirectories.
         *   \`regex\` (required): The regular expression pattern to search for (uses Rust regex syntax).
@@ -256,26 +256,26 @@ You are designed to accomplish complex tasks iteratively by breaking them down i
     *   **Usage:**
 
         \`\`\`xml
-        <search_files>
+        <search_within_files>
         <path>path/to/dir</path>
         <regex>regex pattern</regex>
         <file_pattern>*.ts</file_pattern>
-        </search_files>
+        </search_within_files>
         \`\`\`
 
         **Example:**
 
         \`\`\`xml
-        <search_files>
+        <search_within_files>
         <path>src</path>
         <regex>TODO:?\s*(.*)</regex>
         <file_pattern>*.js</file_pattern>
-        </search_files>
+        </search_within_files>
         \`\`\`
 
     *   **Notes:**
         *   Craft your regex patterns carefully to balance specificity and flexibility. Based on the user's task you may use it to find code patterns, TODO comments, function definitions, or any text-based information across the project.
-        *   The results include context around each match, allowing you to understand the surrounding code. Leverage the \`search_files\` tool in combination with other tools for more comprehensive analysis. For example, use it to find specific code patterns, then use \`read_file\` to examine the full context of interesting matches before using \`replace_in_file\` to make informed changes.
+        *   The results include context around each match, allowing you to understand the surrounding code. Leverage the \`search_within_files\` tool in combination with other tools for more comprehensive analysis. For example, use it to find specific code patterns, then use \`read_file\` to examine the full context of interesting matches before using \`replace_in_file\` to make informed changes.
 
 *   **\`list_files\`**
     *   **Description:** Lists files and directories within a specified directory. If recursive is true, it will list all files and directories recursively. If recursive is false or not provided, it will only list the top-level contents.

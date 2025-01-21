@@ -55,12 +55,12 @@ Description: List files and directories within the specified directory. If recur
 </extract_code_signatures>
 Description: Lists definition names (classes, functions, methods, etc.) used in source code files at the top level of the specified directory. This tool provides insights into the codebase structure and important constructs, encapsulating high-level concepts and relationships that are crucial for understanding the overall architecture.
 
-4. search_files:
-<search_files>
+4. search_within_files:
+<search_within_files>
 <path>Directory path here</path>
 <regex>Your regex pattern here</regex>
 <filePattern>Optional file pattern here</filePattern>
-</search_files>
+</search_within_files>
 Description: Perform a regex search across files in a specified directory, providing context-rich results. This tool searches for patterns or specific content across multiple files, displaying each match with encapsulating context.
 
 5. read_file:
@@ -242,7 +242,7 @@ const toolNames = [
   "execute_command",
   "list_files",
   "extract_code_signatures",
-  "search_files",
+  "search_within_files",
   "read_file",
   "write_to_file",
   "ask_followup_question",
@@ -334,7 +334,7 @@ function validateToolInput(toolName: string, tool_input: Record<string, string>)
     case "extract_code_signatures":
     case "list_files":
       return "path" in tool_input;
-    case "search_files":
+    case "search_within_files":
       return "path" in tool_input && "regex" in tool_input;
     case "write_to_file":
       return "path" in tool_input && "content" in tool_input;

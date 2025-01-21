@@ -128,7 +128,7 @@ function Announcement({ version, hideAnnouncement }: AnnouncementProps) {
 					the center to undo "<code>{"// rest of code here"}</code>" shenanigans)
 				</li>
 				<li>
-					New <code>search_files</code> tool that lets Recline perform regex searches in your project, letting
+					New <code>search_within_files</code> tool that lets Recline perform regex searches in your project, letting
 					him refactor code, address TODOs and FIXMEs, remove dead code, and more!
 				</li>
 				<li>

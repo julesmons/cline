@@ -13,7 +13,7 @@ export const toolUseNames = [
   "read_file",
   "write_to_file",
   "replace_in_file",
-  "search_files",
+  "search_within_files",
   "list_files",
   "extract_code_signatures",
   "browser_action",
@@ -79,7 +79,7 @@ export interface ReplaceInFileToolUse extends ToolUse {
 }
 
 export interface SearchFilesToolUse extends ToolUse {
-  name: "search_files";
+  name: "search_within_files";
   params: Partial<Pick<Record<ToolParamName, string>, "path" | "regex" | "file_pattern">>;
 }
 
